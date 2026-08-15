@@ -1,0 +1,21 @@
+import { NextRequest, NextResponse } from "next/server";
+import { addPlayer, getTournamentState } from "@/lib/tournament-service";
+import { serializeTournament } from "@/lib/view";
+import { handleApiError } from "@/lib/api-helpers";
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function POST(req: NextRequest, { params }: Params) {
+  try {
+    const { id } = await params;
+    const { adminToken, name, email } = await req.json();
+    await addPlayer(id, adminToken, { name, email });
+    const { tournament, levels, players, prizes } = await getTournamentState(id);
+    return NextResponse.json(
+      serializeTournament({ tournament, levels, players, prizes, isAdmin: true, origin: req.nextUrl.origin }),
+      { status: 201 }
+    );
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
