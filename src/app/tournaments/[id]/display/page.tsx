@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
-import { formatClock, formatCurrency } from "@/lib/tournament-logic";
+import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tournament-logic";
+import { TournamentTimeline } from "@/components/tournament-timeline";
+import { themeVars } from "@/lib/theme";
 
 function useLiveCountdown(remainingSeconds: number, isRunning: boolean) {
   const [display, setDisplay] = useState(remainingSeconds);
@@ -38,9 +40,13 @@ export default function DisplayPage() {
   const nextLevel = data.levels[data.currentLevelIndex + 1];
   const isLowTime = isRunning && display <= 30;
   const isBreak = currentLevel?.isBreak;
+  const secondsToBreak = secondsUntilNextBreak(data.levels, data.currentLevelIndex, display);
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center px-6 py-10 ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}>
+    <div
+      className={`min-h-screen flex flex-col items-center justify-center px-6 py-10 ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}
+      style={themeVars(data.themeColor)}
+    >
       <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-300 mb-6 text-center">{data.name}</h1>
 
       {data.status === "draft" && (
@@ -48,7 +54,7 @@ export default function DisplayPage() {
       )}
 
       {data.status === "finished" && (
-        <p className="text-4xl sm:text-6xl font-bold text-emerald-400 text-center">{t("display_finished")}</p>
+        <p className="text-4xl sm:text-6xl font-bold text-accent-400 text-center">{t("display_finished")}</p>
       )}
 
       {(data.status === "running" || data.status === "paused") && currentLevel && (
@@ -67,7 +73,7 @@ export default function DisplayPage() {
           </p>
 
           {!isBreak && (
-            <p className="mt-6 text-4xl sm:text-6xl font-bold text-emerald-400">
+            <p className="mt-6 text-4xl sm:text-6xl font-bold text-accent-400">
               {currentLevel.smallBlind} / {currentLevel.bigBlind}
               {currentLevel.ante ? (
                 <span className="text-2xl sm:text-4xl text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
@@ -85,6 +91,21 @@ export default function DisplayPage() {
                   }`}
             </p>
           )}
+
+          <div className="mt-8 w-full max-w-3xl">
+            <TournamentTimeline
+              levels={data.levels}
+              currentLevelIndex={data.currentLevelIndex}
+              remainingSeconds={display}
+            />
+            <p className="mt-2 text-center text-sm text-neutral-500">
+              {isBreak
+                ? t("clock_on_break")
+                : secondsToBreak == null
+                ? t("clock_no_more_breaks")
+                : t("clock_next_break_in", { n: Math.max(1, Math.ceil(secondsToBreak / 60)) })}
+            </p>
+          </div>
         </>
       )}
 
@@ -98,7 +119,7 @@ export default function DisplayPage() {
           <p className="text-sm text-neutral-500">{t("display_entries")}</p>
         </div>
         <div>
-          <p className="text-3xl sm:text-4xl font-bold text-emerald-400">
+          <p className="text-3xl sm:text-4xl font-bold text-accent-400">
             {formatCurrency(data.prizePool, data.currency, "es-MX")}
           </p>
           <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>

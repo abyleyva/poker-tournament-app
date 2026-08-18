@@ -91,6 +91,10 @@ const dictionaries = {
     clock_avg_stack: "Stack promedio",
     clock_prize_pool: "Bolsa total",
     clock_no_levels: "Todavía no hay niveles configurados.",
+    clock_next_break_in: "Siguiente descanso en {{n}} min",
+    clock_on_break: "En descanso",
+    clock_no_more_breaks: "No hay más descansos",
+    clock_timeline_hint: "Arrastra la línea de tiempo para mover el reloj",
 
     players_add_title: "Agregar jugador",
     players_name: "Nombre",
@@ -125,6 +129,8 @@ const dictionaries = {
     settings_save: "Guardar cambios",
     settings_saved: "Cambios guardados",
     settings_locked_hint: "Algunos valores no se pueden cambiar una vez que el torneo inició.",
+    settings_theme_color: "Color de la interfaz",
+    settings_theme_color_hint: "Se aplica al reloj, al panel de administrador y a la pantalla de cada jugador.",
 
     display_waiting: "Esperando a que el organizador inicie el torneo",
     display_break: "DESCANSO",
@@ -238,6 +244,10 @@ const dictionaries = {
     clock_avg_stack: "Average stack",
     clock_prize_pool: "Total prize pool",
     clock_no_levels: "No levels configured yet.",
+    clock_next_break_in: "Next break in {{n}} min",
+    clock_on_break: "On break",
+    clock_no_more_breaks: "No more breaks",
+    clock_timeline_hint: "Drag the timeline to move the clock",
 
     players_add_title: "Add player",
     players_name: "Name",
@@ -272,6 +282,8 @@ const dictionaries = {
     settings_save: "Save changes",
     settings_saved: "Changes saved",
     settings_locked_hint: "Some values can't be changed once the tournament has started.",
+    settings_theme_color: "Interface color",
+    settings_theme_color_hint: "Applied to the clock, the admin panel, and every player's screen.",
 
     display_waiting: "Waiting for the organizer to start the tournament",
     display_break: "BREAK",

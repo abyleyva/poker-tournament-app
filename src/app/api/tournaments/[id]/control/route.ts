@@ -8,8 +8,10 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const { adminToken, action } = await req.json();
-    const { tournament, levels, players, prizes } = await controlTournament(id, adminToken, action);
+    const { adminToken, action, seekSeconds } = await req.json();
+    const { tournament, levels, players, prizes } = await controlTournament(id, adminToken, action, {
+      seekSeconds,
+    });
     return NextResponse.json(
       serializeTournament({ tournament, levels, players, prizes, isAdmin: true, origin: req.nextUrl.origin })
     );

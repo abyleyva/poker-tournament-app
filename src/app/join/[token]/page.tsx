@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
 import { formatClock, formatCurrency } from "@/lib/tournament-logic";
+import { themeVars } from "@/lib/theme";
 
 export default function JoinPage() {
   const { t } = useI18n();
@@ -32,7 +33,7 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-8">
+    <div className="mx-auto max-w-lg px-4 py-8" style={themeVars(data.themeColor)}>
       <h1 className="text-xl font-bold text-white mb-1">{data.name}</h1>
       <p className="text-neutral-400 mb-6">{t("join_title")}: {me.name}</p>
 
@@ -52,7 +53,7 @@ export default function JoinPage() {
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-6 text-center mb-6">
               <p className="font-mono text-5xl font-bold text-white">{formatClock(data.remainingSeconds)}</p>
               {!currentLevel.isBreak ? (
-                <p className="mt-2 text-2xl font-semibold text-emerald-400">
+                <p className="mt-2 text-2xl font-semibold text-accent-400">
                   {currentLevel.smallBlind}/{currentLevel.bigBlind}
                   {currentLevel.ante ? ` · ${t("clock_ante")} ${currentLevel.ante}` : ""}
                 </p>
@@ -79,7 +80,7 @@ export default function JoinPage() {
             <button
               onClick={requestRebuy}
               disabled={rebuySent || me.requestedRebuy}
-              className="w-full mb-6 rounded-xl bg-emerald-600 px-4 py-2.5 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="w-full mb-6 rounded-xl bg-accent-600 px-4 py-2.5 font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
             >
               {rebuySent || me.requestedRebuy ? t("join_request_rebuy_sent") : t("join_request_rebuy")}
             </button>
@@ -97,7 +98,7 @@ export default function JoinPage() {
             <li
               key={p.id}
               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-                p.id === me.id ? "bg-emerald-900/30 text-emerald-300" : "text-neutral-300"
+                p.id === me.id ? "bg-accent-900/30 text-accent-300" : "text-neutral-300"
               } ${p.status === "eliminated" ? "opacity-50" : ""}`}
             >
               <span>

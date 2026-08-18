@@ -63,6 +63,27 @@ export function secondsRemaining(state: ClockState, now: Date): number {
   return 0;
 }
 
+/**
+ * Seconds remaining until the next break starts, counting from the current
+ * level's remaining time plus the full duration of every level in between.
+ * Returns 0 if currently on a break, or null if there is no upcoming break.
+ */
+export function secondsUntilNextBreak(
+  levels: { durationMinutes: number; isBreak: boolean }[],
+  currentLevelIndex: number,
+  remainingSeconds: number
+): number | null {
+  if (currentLevelIndex < 0 || currentLevelIndex >= levels.length) return null;
+  if (levels[currentLevelIndex].isBreak) return 0;
+
+  let total = Math.max(0, remainingSeconds);
+  for (let i = currentLevelIndex + 1; i < levels.length; i++) {
+    if (levels[i].isBreak) return total;
+    total += levels[i].durationMinutes * 60;
+  }
+  return null;
+}
+
 export type PrizeInput = { position: number; percentage: number };
 
 export type PrizePayout = {

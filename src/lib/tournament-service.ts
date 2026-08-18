@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { blindLevels, players, prizes, tournaments } from "@/db/schema";
 import { generateToken } from "./tokens";
 import { computeAdvancedClock } from "./tournament-logic";
+import { DEFAULT_THEME_COLOR, isThemeColorId } from "./theme";
 
 export type LevelInput = {
   order: number;
@@ -29,6 +30,7 @@ export type CreateTournamentInput = {
   allowAddOn: boolean;
   addOnPrice?: number | null;
   addOnStack?: number | null;
+  themeColor?: string | null;
   levels: LevelInput[];
   prizes: PrizeInputRow[];
 };
@@ -59,6 +61,7 @@ export async function createTournament(input: CreateTournamentInput) {
       allowAddOn: input.allowAddOn,
       addOnPrice: input.allowAddOn ? input.addOnPrice ?? 0 : null,
       addOnStack: input.allowAddOn ? input.addOnStack ?? input.startingStack : null,
+      themeColor: isThemeColorId(input.themeColor) ? input.themeColor : DEFAULT_THEME_COLOR,
       status: "draft",
       currentLevelIndex: 0,
       adminToken,
@@ -193,6 +196,9 @@ export async function updateTournamentSettings(
   if (patch.allowAddOn !== undefined) updates.allowAddOn = patch.allowAddOn;
   if (patch.addOnPrice !== undefined) updates.addOnPrice = patch.addOnPrice;
   if (patch.addOnStack !== undefined) updates.addOnStack = patch.addOnStack;
+  if (patch.themeColor !== undefined && isThemeColorId(patch.themeColor)) {
+    updates.themeColor = patch.themeColor;
+  }
 
   await db.update(tournaments).set(updates).where(eq(tournaments.id, tournamentId));
 
@@ -226,12 +232,15 @@ export async function updateTournamentSettings(
   return fetchFull(tournamentId);
 }
 
-export type ControlAction = "start" | "pause" | "resume" | "next" | "prev" | "reset";
+export type ControlAction = "start" | "pause" | "resume" | "next" | "prev" | "reset" | "seek";
+
+export type ControlPayload = { seekSeconds?: number };
 
 export async function controlTournament(
   tournamentId: string,
   adminToken: string,
-  action: ControlAction
+  action: ControlAction,
+  payload: ControlPayload = {}
 ) {
   const { tournament, levels } = await tick(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
@@ -296,6 +305,40 @@ export async function controlTournament(
     }
     case "reset": {
       update = { status: "draft", currentLevelIndex: 0, levelEndsAt: null, remainingSeconds: null };
+      break;
+    }
+    case "seek": {
+      if (tournament.status !== "running" && tournament.status !== "paused") break;
+
+      const totalSeconds = levels.reduce((sum, l) => sum + l.durationMinutes * 60, 0);
+      if (totalSeconds <= 0) break;
+
+      const target = Math.min(
+        Math.max(0, Math.round(payload.seekSeconds ?? 0)),
+        Math.max(0, totalSeconds - 1)
+      );
+
+      let acc = 0;
+      let levelIndex = levels.length - 1;
+      let remainingInLevel = 1;
+      for (let i = 0; i < levels.length; i++) {
+        const durSec = levels[i].durationMinutes * 60;
+        if (target < acc + durSec) {
+          levelIndex = i;
+          remainingInLevel = Math.max(1, acc + durSec - target);
+          break;
+        }
+        acc += durSec;
+      }
+
+      update =
+        tournament.status === "paused"
+          ? { currentLevelIndex: levelIndex, remainingSeconds: remainingInLevel }
+          : {
+              currentLevelIndex: levelIndex,
+              status: "running",
+              levelEndsAt: new Date(now.getTime() + remainingInLevel * 1000),
+            };
       break;
     }
   }

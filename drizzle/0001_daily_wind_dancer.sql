@@ -1,0 +1,1 @@
+ALTER TABLE "tournaments" ADD COLUMN "theme_color" text DEFAULT 'emerald' NOT NULL;

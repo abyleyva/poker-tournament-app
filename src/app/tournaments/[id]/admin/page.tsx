@@ -4,8 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
-import { formatClock, formatCurrency } from "@/lib/tournament-logic";
+import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tournament-logic";
 import { saveLocalTournament } from "@/lib/local-tournaments";
+import { TournamentTimeline } from "@/components/tournament-timeline";
+import { THEME_COLOR_IDS, THEME_COLORS, themeVars, type ThemeColorId } from "@/lib/theme";
 
 export default function AdminPage() {
   return (
@@ -40,7 +42,7 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="rounded-lg border border-neutral-700 px-2.5 py-1 text-xs text-neutral-200 hover:border-emerald-500 transition-colors shrink-0"
+      className="rounded-lg border border-neutral-700 px-2.5 py-1 text-xs text-neutral-200 hover:border-accent-500 transition-colors shrink-0"
     >
       {copied ? copiedLabel : label}
     </button>
@@ -68,11 +70,11 @@ function AdminPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.name]);
 
-  async function control(action: string) {
+  async function control(action: string, extra?: Record<string, unknown>) {
     const res = await fetch(`/api/tournaments/${id}/control`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminToken, action }),
+      body: JSON.stringify({ adminToken, action, ...extra }),
     });
     const json = await res.json();
     if (res.ok) setData(json);
@@ -92,7 +94,7 @@ function AdminPageInner() {
   const nextLevel = data.levels[data.currentLevelIndex + 1];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8" style={themeVars(data.themeColor)}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-white">{data.name}</h1>
         <span className="rounded-full bg-neutral-800 px-3 py-1 text-xs font-medium text-neutral-300">
@@ -124,7 +126,7 @@ function AdminPageInner() {
             onClick={() => setTab(tabKey)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === tabKey
-                ? "border-emerald-500 text-white"
+                ? "border-accent-500 text-white"
                 : "border-transparent text-neutral-400 hover:text-white"
             }`}
           >
@@ -146,14 +148,17 @@ function AdminPageInner() {
 function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
   const { t } = useI18n();
   const isRunning = data.status === "running";
+  const isPaused = data.status === "paused";
+  const canSeek = isRunning || isPaused;
   const display = useLiveCountdown(data.remainingSeconds, isRunning);
   const isLowTime = isRunning && display <= 30;
+  const secondsToBreak = secondsUntilNextBreak(data.levels, data.currentLevelIndex, display);
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-8 text-center">
         {data.status === "finished" ? (
-          <p className="text-2xl font-bold text-emerald-400">{t("clock_status_finished")}</p>
+          <p className="text-2xl font-bold text-accent-400">{t("clock_status_finished")}</p>
         ) : !currentLevel ? (
           <p className="text-neutral-400">{t("clock_no_levels")}</p>
         ) : (
@@ -165,7 +170,7 @@ function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
               {formatClock(display)}
             </p>
             {!currentLevel.isBreak && (
-              <p className="mt-4 text-2xl text-emerald-400 font-semibold">
+              <p className="mt-4 text-2xl text-accent-400 font-semibold">
                 {currentLevel.smallBlind}/{currentLevel.bigBlind}
                 {currentLevel.ante ? ` (${t("clock_ante")} ${currentLevel.ante})` : ""}
               </p>
@@ -178,13 +183,33 @@ function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
                   : `${nextLevel.smallBlind}/${nextLevel.bigBlind}${nextLevel.ante ? ` (${t("clock_ante")} ${nextLevel.ante})` : ""}`}
               </p>
             )}
+
+            {canSeek && (
+              <div className="mt-6">
+                <TournamentTimeline
+                  levels={data.levels}
+                  currentLevelIndex={data.currentLevelIndex}
+                  remainingSeconds={display}
+                  interactive
+                  onSeek={(seconds) => onControl("seek", { seekSeconds: seconds })}
+                />
+                <p className="mt-2 text-xs text-neutral-500">
+                  {t("clock_timeline_hint")} ·{" "}
+                  {currentLevel.isBreak
+                    ? t("clock_on_break")
+                    : secondsToBreak == null
+                    ? t("clock_no_more_breaks")
+                    : t("clock_next_break_in", { n: Math.max(1, Math.ceil(secondsToBreak / 60)) })}
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center">
         {data.status === "draft" && (
-          <button onClick={() => onControl("start")} className="rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white hover:bg-emerald-500">
+          <button onClick={() => onControl("start")} className="rounded-xl bg-accent-600 px-5 py-2.5 font-semibold text-white hover:bg-accent-500">
             {t("clock_start")}
           </button>
         )}
@@ -194,7 +219,7 @@ function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
           </button>
         )}
         {data.status === "paused" && (
-          <button onClick={() => onControl("resume")} className="rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white hover:bg-emerald-500">
+          <button onClick={() => onControl("resume")} className="rounded-xl bg-accent-600 px-5 py-2.5 font-semibold text-white hover:bg-accent-500">
             {t("clock_resume")}
           </button>
         )}
@@ -283,7 +308,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
     else alert(json.error);
   }
 
-  const inputClass = "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-emerald-500 focus:outline-none";
+  const inputClass = "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-accent-500 focus:outline-none";
 
   return (
     <div className="space-y-6">
@@ -295,7 +320,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
           <button
             type="submit"
             disabled={busy || !name.trim()}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
           >
             {t("players_add_cta")}
           </button>
@@ -313,7 +338,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                   <span className="font-semibold text-white">{p.name}</span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs ${
-                      p.status === "active" ? "bg-emerald-900/50 text-emerald-300" : "bg-neutral-800 text-neutral-400"
+                      p.status === "active" ? "bg-accent-900/50 text-accent-300" : "bg-neutral-800 text-neutral-400"
                     }`}
                   >
                     {p.status === "active" ? t("players_status_active") : t("players_status_eliminated")}
@@ -358,7 +383,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                 {data.allowRebuy && p.status === "active" && (
                   <button
                     onClick={() => patchPlayer(p.id, { rebuy: true })}
-                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-emerald-500"
+                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500"
                   >
                     {t("players_rebuy_cta")}
                   </button>
@@ -366,7 +391,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                 {data.allowAddOn && p.status === "active" && (
                   <button
                     onClick={() => patchPlayer(p.id, { addOn: true })}
-                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-emerald-500"
+                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500"
                   >
                     {t("players_addon_cta")}
                   </button>
@@ -385,7 +410,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                 ) : (
                   <button
                     onClick={() => patchPlayer(p.id, { reactivate: true })}
-                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-emerald-500"
+                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500"
                   >
                     {t("players_reactivate")}
                   </button>
@@ -424,7 +449,7 @@ function PrizesTab({ data }: any) {
               <tr key={p.position}>
                 <td className="px-4 py-2 text-white">#{p.position}</td>
                 <td className="px-4 py-2 text-neutral-300">{p.percentage}%</td>
-                <td className="px-4 py-2 font-medium text-emerald-400">
+                <td className="px-4 py-2 font-medium text-accent-400">
                   {formatCurrency(p.amount, data.currency, "es-MX")}
                 </td>
               </tr>
@@ -449,6 +474,7 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     allowAddOn: data.allowAddOn,
     addOnPrice: data.addOnPrice ?? 0,
     addOnStack: data.addOnStack ?? data.startingStack,
+    themeColor: (data.themeColor ?? "emerald") as ThemeColorId,
   });
   const [saved, setSaved] = useState(false);
   const locked = data.status !== "draft";
@@ -468,7 +494,7 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     } else alert(json.error);
   }
 
-  const inputClass = "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-emerald-500 focus:outline-none disabled:opacity-50";
+  const inputClass = "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-accent-500 focus:outline-none disabled:opacity-50";
   const labelClass = "block text-xs font-medium text-neutral-400 mb-1";
 
   return (
@@ -539,7 +565,27 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
         )}
       </div>
 
-      <button type="submit" className="rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white hover:bg-emerald-500">
+      <div className="rounded-xl border border-neutral-800 p-4">
+        <label className={labelClass}>{t("settings_theme_color")}</label>
+        <p className="mb-3 text-xs text-neutral-500">{t("settings_theme_color_hint")}</p>
+        <div className="flex flex-wrap gap-3">
+          {THEME_COLOR_IDS.map((colorId) => (
+            <button
+              key={colorId}
+              type="button"
+              title={THEME_COLORS[colorId].label}
+              aria-label={THEME_COLORS[colorId].label}
+              onClick={() => setForm({ ...form, themeColor: colorId })}
+              className={`h-9 w-9 rounded-full ring-offset-2 ring-offset-neutral-900 transition-all ${
+                form.themeColor === colorId ? "ring-2 ring-white scale-110" : "ring-1 ring-white/10 hover:ring-white/40"
+              }`}
+              style={{ backgroundColor: THEME_COLORS[colorId].swatch }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <button type="submit" className="rounded-xl bg-accent-600 px-5 py-2.5 font-semibold text-white hover:bg-accent-500">
         {saved ? t("settings_saved") : t("settings_save")}
       </button>
     </form>

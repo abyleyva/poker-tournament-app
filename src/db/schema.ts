@@ -31,6 +31,10 @@ export const tournaments = pgTable("tournaments", {
   levelEndsAt: timestamp("level_ends_at", { withTimezone: true }),
   remainingSeconds: integer("remaining_seconds"),
 
+  // Accent color applied across the tournament's clock/admin/player screens.
+  // One of the ids in src/lib/theme.ts (THEME_COLORS) — "emerald" by default.
+  themeColor: text("theme_color").notNull().default("emerald"),
+
   adminToken: text("admin_token").notNull().unique(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

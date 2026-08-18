@@ -71,6 +71,7 @@ export function serializeTournament(params: {
     addOnStack: tournament.addOnStack,
     status: tournament.status,
     currentLevelIndex: tournament.currentLevelIndex,
+    themeColor: tournament.themeColor,
     remainingSeconds: remaining,
     serverTime: now.toISOString(),
     isAdmin,
