@@ -138,6 +138,10 @@ const dictionaries = {
     display_entries: "Entradas",
     display_prize_pool: "Bolsa",
     display_scan_hint: "Pide tu link personal al organizador para ver tu stack",
+    display_eliminated_title: "¡ELIMINADO!",
+    display_eliminated_subtitle: "Suerte para la próxima",
+    display_eliminated_place: "{{ord}} lugar",
+    display_eliminated_remaining: "Quedan {{n}}",
 
     join_title: "Tu lugar en el torneo",
     join_your_stack: "Tu stack",
@@ -291,6 +295,10 @@ const dictionaries = {
     display_entries: "Entries",
     display_prize_pool: "Prize pool",
     display_scan_hint: "Ask the organizer for your personal link to see your stack",
+    display_eliminated_title: "ELIMINATED!",
+    display_eliminated_subtitle: "Better luck next time",
+    display_eliminated_place: "{{ord}} place",
+    display_eliminated_remaining: "{{n}} remaining",
 
     join_title: "Your seat in the tournament",
     join_your_stack: "Your stack",

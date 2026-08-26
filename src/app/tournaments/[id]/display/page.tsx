@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
 import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tournament-logic";
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { themeVars } from "@/lib/theme";
+import { EliminationCard, type EliminationEvent } from "@/components/elimination-card";
 
 function useLiveCountdown(remainingSeconds: number, isRunning: boolean) {
   const [display, setDisplay] = useState(remainingSeconds);
@@ -19,6 +20,54 @@ function useLiveCountdown(remainingSeconds: number, isRunning: boolean) {
   return display;
 }
 
+/**
+ * Watches the polled player list and queues one EliminationEvent per player
+ * that newly transitions to "eliminated" since the last poll. Players who
+ * are already eliminated on the very first load (display opened mid-tournament)
+ * are recorded silently so we don't replay the whole history as a burst of cards.
+ */
+function useEliminationQueue(data: any) {
+  const alertedIds = useRef<Set<string>>(new Set());
+  const initialized = useRef(false);
+  const [queue, setQueue] = useState<EliminationEvent[]>([]);
+  const [current, setCurrent] = useState<EliminationEvent | null>(null);
+
+  useEffect(() => {
+    if (!data?.players) return;
+    const eliminated = data.players.filter((p: any) => p.status === "eliminated");
+
+    if (!initialized.current) {
+      eliminated.forEach((p: any) => alertedIds.current.add(p.id));
+      initialized.current = true;
+      return;
+    }
+
+    const fresh = eliminated.filter((p: any) => !alertedIds.current.has(p.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((p: any) => alertedIds.current.add(p.id));
+
+    setQueue((q) => [
+      ...q,
+      ...fresh.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        finishPosition: p.finishPosition ?? null,
+        remaining: data.stats.activeCount,
+      })),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  useEffect(() => {
+    if (!current && queue.length > 0) {
+      setCurrent(queue[0]);
+      setQueue((q) => q.slice(1));
+    }
+  }, [queue, current]);
+
+  return { current, dismiss: () => setCurrent(null) };
+}
+
 export default function DisplayPage() {
   const { t } = useI18n();
   const params = useParams<{ id: string }>();
@@ -29,6 +78,7 @@ export default function DisplayPage() {
 
   const isRunning = data?.status === "running";
   const display = useLiveCountdown(data?.remainingSeconds ?? 0, isRunning);
+  const { current: eliminationEvent, dismiss: dismissElimination } = useEliminationQueue(data);
 
   if (loading && !data)
     return <div className="min-h-screen flex items-center justify-center text-neutral-400 text-xl">{t("common_loading")}</div>;
@@ -127,6 +177,8 @@ export default function DisplayPage() {
       </div>
 
       <p className="mt-10 text-sm text-neutral-600 text-center">{t("display_scan_hint")}</p>
+
+      {eliminationEvent && <EliminationCard event={eliminationEvent} onDone={dismissElimination} />}
     </div>
   );
 }
