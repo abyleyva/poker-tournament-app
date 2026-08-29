@@ -8,6 +8,7 @@ import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tourna
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { themeVars } from "@/lib/theme";
 import { EliminationCard, type EliminationEvent } from "@/components/elimination-card";
+import { WinnerCelebration } from "@/components/winner-celebration";
 
 function useLiveCountdown(remainingSeconds: number, isRunning: boolean) {
   const [display, setDisplay] = useState(remainingSeconds);
@@ -53,15 +54,33 @@ function useEliminationQueue(data: any) {
     if (fresh.length === 0) return;
     fresh.forEach((p: any) => alertedIds.current.add(p.id));
 
-    setQueue((q) => [
-      ...q,
-      ...fresh.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        finishPosition: p.finishPosition ?? null,
-        remaining: data.stats.activeCount,
-      })),
-    ]);
+    const payouts: { position: number; amount: number }[] = data.payouts ?? [];
+    const paidPositions = payouts.length;
+
+    // 2nd place (the runner-up) skips the regular elimination card entirely —
+    // once they bust out, only the winner is left and the tournament is over,
+    // so the WinnerCelebration overlay takes over instead (see DisplayPage).
+    const newEvents = fresh
+      .filter((p: any) => (p.finishPosition ?? null) !== 2)
+      .map((p: any) => {
+        const finishPosition: number | null = p.finishPosition ?? null;
+        const payout = finishPosition != null ? payouts.find((x) => x.position === finishPosition) : undefined;
+        const isBubble = paidPositions > 0 && finishPosition === paidPositions + 1;
+        const isCashed = !!payout && finishPosition != null && finishPosition > 2;
+        return {
+          id: p.id,
+          name: p.name,
+          finishPosition,
+          remaining: data.stats.activeCount,
+          prizeAmount: isCashed ? payout!.amount : null,
+          isBubble,
+          currency: data.currency,
+        };
+      });
+
+    if (newEvents.length > 0) {
+      setQueue((q) => [...q, ...newEvents]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
@@ -86,6 +105,7 @@ export default function DisplayPage() {
   const isRunning = data?.status === "running";
   const display = useLiveCountdown(data?.remainingSeconds ?? 0, isRunning);
   const { current: eliminationEvent, dismiss: dismissElimination } = useEliminationQueue(data);
+  const [winnerDismissed, setWinnerDismissed] = useState(false);
 
   if (loading && !data)
     return <div className="min-h-screen flex items-center justify-center text-neutral-400 text-xl">{t("common_loading")}</div>;
@@ -105,6 +125,19 @@ export default function DisplayPage() {
       : null;
 
   const hasLogos = !!(data.appLogoUrl || data.tournamentLogoUrl);
+
+  // The runner-up busting out auto-finishes the tournament server-side (see
+  // updatePlayer in tournament-service.ts) — that combination (finished +
+  // exactly one player still active) is what distinguishes "we have a
+  // winner" from a tournament that simply ran out of clock time.
+  const winner = data.status === "finished" && data.stats.activeCount === 1 ? data.players.find((p: any) => p.status === "active") : null;
+  const winnerResults = winner
+    ? data.players.map((p: any, idx: number) => ({
+        id: p.id,
+        name: p.name,
+        rank: idx === 0 ? 1 : p.finishPosition ?? idx + 1,
+      }))
+    : null;
 
   return (
     <div
@@ -137,7 +170,7 @@ export default function DisplayPage() {
           <p className="text-2xl text-neutral-400 text-center">{t("display_waiting")}</p>
         )}
 
-        {data.status === "finished" && (
+        {data.status === "finished" && !winnerResults && (
           <p className="text-4xl sm:text-6xl font-bold text-accent-400 text-center">{t("display_finished")}</p>
         )}
 
@@ -218,6 +251,15 @@ export default function DisplayPage() {
       </div>
 
       {eliminationEvent && <EliminationCard event={eliminationEvent} onDone={dismissElimination} />}
+
+      {winnerResults && !winnerDismissed && (
+        <WinnerCelebration
+          results={winnerResults}
+          payouts={data.payouts ?? []}
+          currency={data.currency}
+          onClose={() => setWinnerDismissed(true)}
+        />
+      )}
     </div>
   );
 }

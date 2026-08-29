@@ -469,6 +469,17 @@ export async function updatePlayer(
 
   await db.update(players).set(updates).where(eq(players.id, playerId));
 
+  // The runner-up (2nd place) busting out means only the winner is left
+  // active — there's no one left to compete against, so the tournament is
+  // over right then. Freeze the clock and mark it finished automatically so
+  // the public display can show the winner celebration with certainty.
+  if (patch.eliminate && patch.finishPosition === 2) {
+    await db
+      .update(tournaments)
+      .set({ status: "finished", levelEndsAt: null, remainingSeconds: 0, updatedAt: new Date() })
+      .where(eq(tournaments.id, tournamentId));
+  }
+
   return db.query.players.findFirst({ where: eq(players.id, playerId) });
 }
 

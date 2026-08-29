@@ -51,3 +51,19 @@ body {
   animation: pulse-red 1s ease-in-out infinite;
 }
 
+@keyframes winner-card-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 10px 30px -12px var(--accent-500);
+  }
+  50% {
+    transform: translateY(-14px) scale(1.02);
+    box-shadow: 0 30px 55px -12px var(--accent-500);
+  }
+}
+
+.winner-card-float {
+  animation: winner-card-float 3.2s ease-in-out infinite;
+}
+

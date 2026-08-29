@@ -166,6 +166,11 @@ const dictionaries = {
     display_bubble_subtitle: "¡Tan cerca!",
     display_cashed_title: "¡COBRÓ!",
     display_level_label: "Nivel {{n}}",
+    display_winner_header: "¡GANADOR! {{name}}",
+    display_winner_badge: "¡GANADOR!",
+    display_winner_place: "1er lugar",
+    display_final_results_title: "Resultados finales",
+    display_close_winner: "Cerrar",
 
     join_title: "Tu lugar en el torneo",
     join_your_stack: "Tu stack",
@@ -348,6 +353,11 @@ const dictionaries = {
     display_bubble_subtitle: "Oh so close!",
     display_cashed_title: "CASHED!",
     display_level_label: "Level {{n}}",
+    display_winner_header: "WINNER! {{name}}",
+    display_winner_badge: "WINNER!",
+    display_winner_place: "1st place",
+    display_final_results_title: "Final results",
+    display_close_winner: "Close",
 
     join_title: "Your seat in the tournament",
     join_your_stack: "Your stack",
