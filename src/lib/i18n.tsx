@@ -142,6 +142,7 @@ const dictionaries = {
     display_eliminated_subtitle: "Suerte para la próxima",
     display_eliminated_place: "{{ord}} lugar",
     display_eliminated_remaining: "Quedan {{n}}",
+    display_level_label: "Nivel {{n}}",
 
     join_title: "Tu lugar en el torneo",
     join_your_stack: "Tu stack",
@@ -299,6 +300,7 @@ const dictionaries = {
     display_eliminated_subtitle: "Better luck next time",
     display_eliminated_place: "{{ord}} place",
     display_eliminated_remaining: "{{n}} remaining",
+    display_level_label: "Level {{n}}",
 
     join_title: "Your seat in the tournament",
     join_your_stack: "Your stack",

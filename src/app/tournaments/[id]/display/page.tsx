@@ -42,6 +42,13 @@ function useEliminationQueue(data: any) {
       return;
     }
 
+    // Forget anyone who was previously eliminated but is no longer (they were
+    // reactivated), so if they get eliminated again the card fires a second time.
+    const eliminatedIds = new Set(eliminated.map((p: any) => p.id));
+    for (const id of Array.from(alertedIds.current)) {
+      if (!eliminatedIds.has(id)) alertedIds.current.delete(id);
+    }
+
     const fresh = eliminated.filter((p: any) => !alertedIds.current.has(p.id));
     if (fresh.length === 0) return;
     fresh.forEach((p: any) => alertedIds.current.add(p.id));
@@ -91,13 +98,20 @@ export default function DisplayPage() {
   const isLowTime = isRunning && display <= 30;
   const isBreak = currentLevel?.isBreak;
   const secondsToBreak = secondsUntilNextBreak(data.levels, data.currentLevelIndex, display);
+  // Human-facing level number: counts only blind levels (breaks aren't numbered).
+  const levelNumber =
+    currentLevel && !isBreak
+      ? 1 + data.levels.slice(0, data.currentLevelIndex).filter((l: any) => !l.isBreak).length
+      : null;
 
   return (
     <div
       className={`min-h-screen flex flex-col items-center justify-center px-6 py-10 ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}
       style={themeVars(data.themeColor)}
     >
-      <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-300 mb-6 text-center">{data.name}</h1>
+      <h1 className="text-4xl sm:text-6xl font-extrabold uppercase tracking-wide text-white mb-8 text-center">
+        {data.name}
+      </h1>
 
       {data.status === "draft" && (
         <p className="text-2xl text-neutral-400 text-center">{t("display_waiting")}</p>
@@ -109,9 +123,13 @@ export default function DisplayPage() {
 
       {(data.status === "running" || data.status === "paused") && currentLevel && (
         <>
-          {isBreak && (
+          {isBreak ? (
             <p className="text-2xl sm:text-3xl font-bold text-amber-400 tracking-widest mb-2">
               {currentLevel.breakLabel || t("display_break")}
+            </p>
+          ) : (
+            <p className="text-xl sm:text-2xl font-bold uppercase tracking-widest text-neutral-400 mb-2">
+              {t("display_level_label", { n: levelNumber })}
             </p>
           )}
           <p
