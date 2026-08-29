@@ -8,6 +8,7 @@ import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tourna
 import { saveLocalTournament } from "@/lib/local-tournaments";
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { THEME_COLOR_IDS, THEME_COLORS, themeVars, type ThemeColorId } from "@/lib/theme";
+import { LogoUploadField } from "@/components/logo-upload-field";
 
 export default function AdminPage() {
   return (
@@ -475,23 +476,27 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     addOnPrice: data.addOnPrice ?? 0,
     addOnStack: data.addOnStack ?? data.startingStack,
     themeColor: (data.themeColor ?? "emerald") as ThemeColorId,
+    logoUrl: (data.tournamentLogoUrl ?? null) as string | null,
   });
   const [saved, setSaved] = useState(false);
   const locked = data.status !== "draft";
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const res = await fetch(`/api/tournaments/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminToken, ...form }),
-    });
-    const json = await res.json();
-    if (res.ok) {
-      setData(json);
+    try {
+      const tournamentRes = await fetch(`/api/tournaments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminToken, ...form }),
+      });
+      const tournamentJson = await tournamentRes.json();
+      if (!tournamentRes.ok) throw new Error(tournamentJson.error);
+      setData(tournamentJson);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
-    } else alert(json.error);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
   }
 
   const inputClass = "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-accent-500 focus:outline-none disabled:opacity-50";
@@ -583,6 +588,15 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
             />
           ))}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-neutral-800 p-4">
+        <LogoUploadField
+          label={t("settings_tournament_logo_label")}
+          hint={t("settings_tournament_logo_hint")}
+          value={form.logoUrl}
+          onChange={(logoUrl) => setForm({ ...form, logoUrl })}
+        />
       </div>
 
       <button type="submit" className="rounded-xl bg-accent-600 px-5 py-2.5 font-semibold text-white hover:bg-accent-500">

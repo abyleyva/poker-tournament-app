@@ -1,9 +1,24 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { blindLevels, players, prizes, tournaments } from "@/db/schema";
+import { appSettings, blindLevels, players, prizes, tournaments } from "@/db/schema";
 import { generateToken } from "./tokens";
 import { computeAdvancedClock } from "./tournament-logic";
 import { DEFAULT_THEME_COLOR, isThemeColorId } from "./theme";
+
+// Logos are stored inline as data URLs (no external file storage configured
+// for this project), so we cap how large one can be to keep DB rows small.
+const MAX_LOGO_DATA_URL_LENGTH = 400_000; // ~300KB of image data, base64-encoded
+const APP_SETTINGS_ID = "global";
+
+function assertValidLogoUrl(logoUrl: string | null | undefined) {
+  if (!logoUrl) return;
+  if (!logoUrl.startsWith("data:image/")) {
+    throw new ValidationError("El logo debe ser una imagen válida.");
+  }
+  if (logoUrl.length > MAX_LOGO_DATA_URL_LENGTH) {
+    throw new ValidationError("La imagen del logo es demasiado grande. Usa una versión más pequeña o comprimida.");
+  }
+}
 
 export type LevelInput = {
   order: number;
@@ -31,6 +46,7 @@ export type CreateTournamentInput = {
   addOnPrice?: number | null;
   addOnStack?: number | null;
   themeColor?: string | null;
+  logoUrl?: string | null;
   levels: LevelInput[];
   prizes: PrizeInputRow[];
 };
@@ -43,6 +59,7 @@ export async function createTournament(input: CreateTournamentInput) {
   if (!input.name?.trim()) throw new ValidationError("El nombre del torneo es obligatorio.");
   if (!input.levels || input.levels.length === 0)
     throw new ValidationError("Debes definir al menos un nivel de ciegas.");
+  assertValidLogoUrl(input.logoUrl);
 
   const adminToken = generateToken();
 
@@ -60,6 +77,7 @@ export async function createTournament(input: CreateTournamentInput) {
       maxRebuys: input.allowRebuy ? input.maxRebuys ?? null : null,
       allowAddOn: input.allowAddOn,
       addOnPrice: input.allowAddOn ? input.addOnPrice ?? 0 : null,
+      logoUrl: input.logoUrl || null,
       addOnStack: input.allowAddOn ? input.addOnStack ?? input.startingStack : null,
       themeColor: isThemeColorId(input.themeColor) ? input.themeColor : DEFAULT_THEME_COLOR,
       status: "draft",
@@ -175,6 +193,27 @@ export function assertAdmin(tournamentAdminToken: string, provided: string | nul
   }
 }
 
+// App-wide settings (currently just the app's own logo, shown alongside each
+// tournament's logo). Editable from the Home page, before any tournament
+// exists, so — like the rest of this login-free app — it isn't gated behind
+// a token. It's a low-stakes cosmetic setting; anyone who can reach the app's
+// Home page can change it.
+export async function getAppSettings() {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.id, APP_SETTINGS_ID));
+  return row ?? null;
+}
+
+export async function updateAppLogo(logoUrl: string | null) {
+  assertValidLogoUrl(logoUrl);
+
+  await db
+    .insert(appSettings)
+    .values({ id: APP_SETTINGS_ID, logoUrl, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.id, set: { logoUrl, updatedAt: new Date() } });
+
+  return getAppSettings();
+}
+
 export async function updateTournamentSettings(
   tournamentId: string,
   adminToken: string,
@@ -198,6 +237,10 @@ export async function updateTournamentSettings(
   if (patch.addOnStack !== undefined) updates.addOnStack = patch.addOnStack;
   if (patch.themeColor !== undefined && isThemeColorId(patch.themeColor)) {
     updates.themeColor = patch.themeColor;
+  }
+  if (patch.logoUrl !== undefined) {
+    assertValidLogoUrl(patch.logoUrl);
+    updates.logoUrl = patch.logoUrl || null;
   }
 
   await db.update(tournaments).set(updates).where(eq(tournaments.id, tournamentId));

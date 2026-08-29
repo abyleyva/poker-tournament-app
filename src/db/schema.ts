@@ -35,9 +35,22 @@ export const tournaments = pgTable("tournaments", {
   // One of the ids in src/lib/theme.ts (THEME_COLORS) — "emerald" by default.
   themeColor: text("theme_color").notNull().default("emerald"),
 
+  // Per-tournament logo (data URL), shown on the public display and the
+  // player invite screen alongside the app-wide logo (see appSettings).
+  logoUrl: text("logo_url"),
+
   adminToken: text("admin_token").notNull().unique(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Single-row table holding app-wide settings that apply across every
+// tournament (currently just the app's own logo). Always read/written with
+// id = "global".
+export const appSettings = pgTable("app_settings", {
+  id: text("id").primaryKey(),
+  logoUrl: text("logo_url"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

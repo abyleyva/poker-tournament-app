@@ -17,8 +17,9 @@ export function serializeTournament(params: {
   prizes: Prize[];
   isAdmin: boolean;
   origin: string;
+  appLogoUrl?: string | null;
 }) {
-  const { tournament, levels, players: playerRows, prizes: prizeRows, isAdmin, origin } = params;
+  const { tournament, levels, players: playerRows, prizes: prizeRows, isAdmin, origin, appLogoUrl } = params;
   const now = new Date();
 
   const entriesCount = playerRows.length;
@@ -72,6 +73,8 @@ export function serializeTournament(params: {
     status: tournament.status,
     currentLevelIndex: tournament.currentLevelIndex,
     themeColor: tournament.themeColor,
+    tournamentLogoUrl: tournament.logoUrl ?? null,
+    appLogoUrl: appLogoUrl ?? null,
     remainingSeconds: remaining,
     serverTime: now.toISOString(),
     isAdmin,

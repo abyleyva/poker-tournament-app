@@ -4,14 +4,45 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { listLocalTournaments, removeLocalTournament, type LocalTournamentRef } from "@/lib/local-tournaments";
+import { LogoUploadField } from "@/components/logo-upload-field";
 
 export default function HomePage() {
   const { t } = useI18n();
   const [tournaments, setTournaments] = useState<LocalTournamentRef[]>([]);
+  const [appLogoUrl, setAppLogoUrl] = useState<string | null>(null);
+  const [logoSaving, setLogoSaving] = useState(false);
+  const [logoSaved, setLogoSaved] = useState(false);
 
   useEffect(() => {
     setTournaments(listLocalTournaments());
+    fetch("/api/app-settings")
+      .then((res) => res.json())
+      .then((json) => setAppLogoUrl(json.logoUrl ?? null))
+      .catch(() => {});
   }, []);
+
+  async function handleAppLogoChange(logoUrl: string | null) {
+    const previous = appLogoUrl;
+    setAppLogoUrl(logoUrl);
+    setLogoSaving(true);
+    try {
+      const res = await fetch("/api/app-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setAppLogoUrl(json.logoUrl ?? null);
+      setLogoSaved(true);
+      setTimeout(() => setLogoSaved(false), 1500);
+    } catch (err) {
+      setAppLogoUrl(previous);
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLogoSaving(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
@@ -24,6 +55,18 @@ export default function HomePage() {
         >
           {t("home_create_cta")}
         </Link>
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">{t("settings_app_logo_label")}</h2>
+          {logoSaving && <span className="text-xs text-neutral-500">{t("common_saving")}</span>}
+          {!logoSaving && logoSaved && <span className="text-xs text-accent-400">{t("settings_saved")}</span>}
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">{t("settings_app_logo_hint")}</p>
+        <div className="mt-3 max-w-xs">
+          <LogoUploadField label="" hint="" value={appLogoUrl} onChange={handleAppLogoChange} />
+        </div>
       </div>
 
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-6">

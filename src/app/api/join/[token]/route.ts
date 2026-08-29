@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPlayerByToken } from "@/lib/tournament-service";
+import { getAppSettings, getPlayerByToken } from "@/lib/tournament-service";
 import { serializeTournament } from "@/lib/view";
 import { handleApiError } from "@/lib/api-helpers";
 
@@ -8,7 +8,10 @@ type Params = { params: Promise<{ token: string }> };
 export async function GET(req: NextRequest, { params }: Params) {
   try {
     const { token } = await params;
-    const { player, tournament, levels, players, prizes } = await getPlayerByToken(token);
+    const [{ player, tournament, levels, players, prizes }, appSettings] = await Promise.all([
+      getPlayerByToken(token),
+      getAppSettings(),
+    ]);
     const view = serializeTournament({
       tournament,
       levels,
@@ -16,6 +19,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       prizes,
       isAdmin: false,
       origin: req.nextUrl.origin,
+      appLogoUrl: appSettings?.logoUrl,
     });
     return NextResponse.json({
       ...view,

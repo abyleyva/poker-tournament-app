@@ -104,97 +104,118 @@ export default function DisplayPage() {
       ? 1 + data.levels.slice(0, data.currentLevelIndex).filter((l: any) => !l.isBreak).length
       : null;
 
+  const hasLogos = !!(data.appLogoUrl || data.tournamentLogoUrl);
+
   return (
     <div
-      className={`min-h-screen flex flex-col items-center justify-center px-6 py-10 ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}
+      className={`min-h-screen flex flex-col ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}
       style={themeVars(data.themeColor)}
     >
-      <h1 className="text-4xl sm:text-6xl font-extrabold uppercase tracking-wide text-white mb-8 text-center">
-        {data.name}
-      </h1>
-
-      {data.status === "draft" && (
-        <p className="text-2xl text-neutral-400 text-center">{t("display_waiting")}</p>
-      )}
-
-      {data.status === "finished" && (
-        <p className="text-4xl sm:text-6xl font-bold text-accent-400 text-center">{t("display_finished")}</p>
-      )}
-
-      {(data.status === "running" || data.status === "paused") && currentLevel && (
-        <>
-          {isBreak ? (
-            <p className="text-2xl sm:text-3xl font-bold text-amber-400 tracking-widest mb-2">
-              {currentLevel.breakLabel || t("display_break")}
-            </p>
-          ) : (
-            <p className="text-xl sm:text-2xl font-bold uppercase tracking-widest text-neutral-400 mb-2">
-              {t("display_level_label", { n: levelNumber })}
-            </p>
-          )}
-          <p
-            className={`font-mono font-bold leading-none ${
-              isLowTime ? "clock-warning text-red-400" : "text-white"
-            } text-[18vw] sm:text-[12rem]`}
-          >
-            {formatClock(display)}
-          </p>
-
-          {!isBreak && (
-            <p className="mt-6 text-4xl sm:text-6xl font-bold text-accent-400">
-              {currentLevel.smallBlind} / {currentLevel.bigBlind}
-              {currentLevel.ante ? (
-                <span className="text-2xl sm:text-4xl text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
-              ) : null}
-            </p>
-          )}
-
-          {nextLevel && (
-            <p className="mt-4 text-lg sm:text-2xl text-neutral-500">
-              {t("clock_next_level")}:{" "}
-              {nextLevel.isBreak
-                ? nextLevel.breakLabel
-                : `${nextLevel.smallBlind} / ${nextLevel.bigBlind}${
-                    nextLevel.ante ? ` · ${t("clock_ante")} ${nextLevel.ante}` : ""
-                  }`}
-            </p>
-          )}
-
-          <div className="mt-8 w-full max-w-3xl">
-            <TournamentTimeline
-              levels={data.levels}
-              currentLevelIndex={data.currentLevelIndex}
-              remainingSeconds={display}
-            />
-            <p className="mt-2 text-center text-sm text-neutral-500">
-              {isBreak
-                ? t("clock_on_break")
-                : secondsToBreak == null
-                ? t("clock_no_more_breaks")
-                : t("clock_next_break_in", { n: Math.max(1, Math.ceil(secondsToBreak / 60)) })}
-            </p>
+      {hasLogos && (
+        <header className="flex w-full items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-6 py-3 sm:px-10 sm:py-4">
+          <div className="flex h-10 sm:h-14 items-center">
+            {data.appLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.appLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
+            )}
           </div>
-        </>
+          <div className="flex h-10 sm:h-14 items-center">
+            {data.tournamentLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.tournamentLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
+            )}
+          </div>
+        </header>
       )}
 
-      <div className="mt-10 grid grid-cols-3 gap-6 text-center">
-        <div>
-          <p className="text-3xl sm:text-4xl font-bold text-white">{data.stats.activeCount}</p>
-          <p className="text-sm text-neutral-500">{t("clock_players_left")}</p>
-        </div>
-        <div>
-          <p className="text-3xl sm:text-4xl font-bold text-white">{data.stats.entriesCount}</p>
-          <p className="text-sm text-neutral-500">{t("display_entries")}</p>
-        </div>
-        <div>
-          <p className="text-3xl sm:text-4xl font-bold text-accent-400">
-            {formatCurrency(data.prizePool, data.currency, "es-MX")}
-          </p>
-          <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>
-        </div>
-      </div>
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
+        <h1 className="text-4xl sm:text-6xl font-extrabold uppercase tracking-wide text-white mb-8 text-center">
+          {data.name}
+        </h1>
 
-      <p className="mt-10 text-sm text-neutral-600 text-center">{t("display_scan_hint")}</p>
+        {data.status === "draft" && (
+          <p className="text-2xl text-neutral-400 text-center">{t("display_waiting")}</p>
+        )}
+
+        {data.status === "finished" && (
+          <p className="text-4xl sm:text-6xl font-bold text-accent-400 text-center">{t("display_finished")}</p>
+        )}
+
+        {(data.status === "running" || data.status === "paused") && currentLevel && (
+          <>
+            {isBreak ? (
+              <p className="text-2xl sm:text-3xl font-bold text-amber-400 tracking-widest mb-2">
+                {currentLevel.breakLabel || t("display_break")}
+              </p>
+            ) : (
+              <p className="text-xl sm:text-2xl font-bold uppercase tracking-widest text-neutral-400 mb-2">
+                {t("display_level_label", { n: levelNumber })}
+              </p>
+            )}
+            <p
+              className={`font-mono font-bold leading-none ${
+                isLowTime ? "clock-warning text-red-400" : "text-white"
+              } text-[18vw] sm:text-[12rem]`}
+            >
+              {formatClock(display)}
+            </p>
+
+            {!isBreak && (
+              <p className="mt-6 text-4xl sm:text-6xl font-bold text-accent-400">
+                {currentLevel.smallBlind} / {currentLevel.bigBlind}
+                {currentLevel.ante ? (
+                  <span className="text-2xl sm:text-4xl text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
+                ) : null}
+              </p>
+            )}
+
+            {nextLevel && (
+              <p className="mt-4 text-lg sm:text-2xl text-neutral-500">
+                {t("clock_next_level")}:{" "}
+                {nextLevel.isBreak
+                  ? nextLevel.breakLabel
+                  : `${nextLevel.smallBlind} / ${nextLevel.bigBlind}${
+                      nextLevel.ante ? ` · ${t("clock_ante")} ${nextLevel.ante}` : ""
+                    }`}
+              </p>
+            )}
+
+            <div className="mt-8 w-full max-w-3xl">
+              <TournamentTimeline
+                levels={data.levels}
+                currentLevelIndex={data.currentLevelIndex}
+                remainingSeconds={display}
+              />
+              <p className="mt-2 text-center text-sm text-neutral-500">
+                {isBreak
+                  ? t("clock_on_break")
+                  : secondsToBreak == null
+                  ? t("clock_no_more_breaks")
+                  : t("clock_next_break_in", { n: Math.max(1, Math.ceil(secondsToBreak / 60)) })}
+              </p>
+            </div>
+          </>
+        )}
+
+        <div className="mt-10 grid grid-cols-3 gap-6 text-center">
+          <div>
+            <p className="text-3xl sm:text-4xl font-bold text-white">{data.stats.activeCount}</p>
+            <p className="text-sm text-neutral-500">{t("clock_players_left")}</p>
+          </div>
+          <div>
+            <p className="text-3xl sm:text-4xl font-bold text-white">{data.stats.entriesCount}</p>
+            <p className="text-sm text-neutral-500">{t("display_entries")}</p>
+          </div>
+          <div>
+            <p className="text-3xl sm:text-4xl font-bold text-accent-400">
+              {formatCurrency(data.prizePool, data.currency, "es-MX")}
+            </p>
+            <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>
+          </div>
+        </div>
+
+        <p className="mt-10 text-sm text-neutral-600 text-center">{t("display_scan_hint")}</p>
+      </div>
 
       {eliminationEvent && <EliminationCard event={eliminationEvent} onDone={dismissElimination} />}
     </div>
