@@ -67,6 +67,7 @@ export default function NewTournamentPage() {
   const [addOnStack, setAddOnStack] = useState<number | "">(15000);
 
   const [levels, setLevels] = useState<LevelRow[]>(defaultLevels());
+  const [linkDurations, setLinkDurations] = useState(false);
   const [prizes, setPrizes] = useState<PrizeRow[]>([
     { key: nextKey(), percentage: 50 },
     { key: nextKey(), percentage: 30 },
@@ -81,8 +82,28 @@ export default function NewTournamentPage() {
     [prizes]
   );
 
+  // Consecutive level numbering that skips breaks entirely (a break never
+  // consumes a number, so the next blind level continues the sequence).
+  const levelNumbers = useMemo(() => {
+    let counter = 0;
+    return levels.map((l) => {
+      if (l.isBreak) return null;
+      counter += 1;
+      return counter;
+    });
+  }, [levels]);
+
   function updateLevel(key: string, patch: Partial<LevelRow>) {
     setLevels((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+
+  function updateLevelDuration(key: string, durationMinutes: number | "") {
+    if (linkDurations) {
+      // "Edit together" mode: this one change applies to every level and break.
+      setLevels((prev) => prev.map((l) => ({ ...l, durationMinutes })));
+    } else {
+      updateLevel(key, { durationMinutes });
+    }
   }
 
   function addLevel() {
@@ -335,7 +356,20 @@ export default function NewTournamentPage() {
         <section className={sectionClass}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white">{t("wizard_section_levels")}</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setLinkDurations((v) => !v)}
+                title={t("wizard_level_link_duration_hint")}
+                aria-pressed={linkDurations}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  linkDurations
+                    ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                    : "border border-neutral-700 text-neutral-200 hover:border-neutral-500"
+                }`}
+              >
+                🔗 {t("wizard_level_link_duration")}
+              </button>
               <button type="button" onClick={addLevel} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500">
                 {t("wizard_level_add")}
               </button>
@@ -344,6 +378,9 @@ export default function NewTournamentPage() {
               </button>
             </div>
           </div>
+          {linkDurations && (
+            <p className="mb-3 text-xs text-emerald-400">{t("wizard_level_link_duration_hint")}</p>
+          )}
 
           <div className="space-y-3">
             {levels.map((l, idx) => (
@@ -353,7 +390,7 @@ export default function NewTournamentPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-neutral-300">
-                    {l.isBreak ? t("wizard_level_break") : t("wizard_level_number", { n: idx + 1 })}
+                    {l.isBreak ? t("wizard_level_break") : t("wizard_level_number", { n: levelNumbers[idx] ?? idx + 1 })}
                   </span>
                   <button
                     type="button"
@@ -381,7 +418,7 @@ export default function NewTournamentPage() {
                         className={inputClass}
                         value={l.durationMinutes}
                         onChange={(e) =>
-                          updateLevel(l.key, { durationMinutes: e.target.value === "" ? "" : Number(e.target.value) })
+                          updateLevelDuration(l.key, e.target.value === "" ? "" : Number(e.target.value))
                         }
                       />
                     </div>
@@ -432,7 +469,7 @@ export default function NewTournamentPage() {
                         className={inputClass}
                         value={l.durationMinutes}
                         onChange={(e) =>
-                          updateLevel(l.key, { durationMinutes: e.target.value === "" ? "" : Number(e.target.value) })
+                          updateLevelDuration(l.key, e.target.value === "" ? "" : Number(e.target.value))
                         }
                       />
                     </div>
