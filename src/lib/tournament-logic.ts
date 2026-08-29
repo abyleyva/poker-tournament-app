@@ -129,6 +129,22 @@ export function formatClock(totalSeconds: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Formats a total duration given in minutes as a clock-style string:
+ * "H:MM:SS" once it spans an hour or more, otherwise just "M:SS" (no
+ * leading hour segment) — e.g. 55 -> "55:00", 170 -> "2:50:00".
+ */
+export function formatDurationHMS(totalMinutes: number): string {
+  const totalSeconds = Math.max(0, Math.round(totalMinutes * 60));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export function formatCurrency(amount: number, currency: string, locale: string): string {
   try {
     return new Intl.NumberFormat(locale, {

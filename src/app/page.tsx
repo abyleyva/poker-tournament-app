@@ -5,20 +5,64 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { listLocalTournaments, removeLocalTournament, type LocalTournamentRef } from "@/lib/local-tournaments";
 import { LogoUploadField } from "@/components/logo-upload-field";
+import { formatDurationHMS } from "@/lib/tournament-logic";
+
+type TournamentSummary = {
+  levelCount: number;
+  breakCount: number;
+  totalMinutes: number;
+};
+
+function summaryLine(t: ReturnType<typeof useI18n>["t"], s: TournamentSummary) {
+  const levelsLabel = t(s.levelCount === 1 ? "home_summary_level" : "home_summary_levels");
+  const breaksLabel = t(s.breakCount === 1 ? "home_summary_break" : "home_summary_breaks");
+  return `${s.levelCount} ${levelsLabel}, ${s.breakCount} ${breaksLabel}, ${formatDurationHMS(s.totalMinutes)} ${t(
+    "home_summary_total_time"
+  )}`;
+}
 
 export default function HomePage() {
   const { t } = useI18n();
   const [tournaments, setTournaments] = useState<LocalTournamentRef[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, TournamentSummary>>({});
   const [appLogoUrl, setAppLogoUrl] = useState<string | null>(null);
   const [logoSaving, setLogoSaving] = useState(false);
   const [logoSaved, setLogoSaved] = useState(false);
 
   useEffect(() => {
-    setTournaments(listLocalTournaments());
+    const list = listLocalTournaments();
+    setTournaments(list);
     fetch("/api/app-settings")
       .then((res) => res.json())
       .then((json) => setAppLogoUrl(json.logoUrl ?? null))
       .catch(() => {});
+
+    Promise.all(
+      list.map(async (tour) => {
+        try {
+          const res = await fetch(`/api/tournaments/${tour.id}`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          const levels: { isBreak: boolean; durationMinutes: number }[] = data.levels ?? [];
+          const summary: TournamentSummary = {
+            levelCount: levels.filter((l) => !l.isBreak).length,
+            breakCount: levels.filter((l) => l.isBreak).length,
+            totalMinutes: levels.reduce((sum, l) => sum + (l.durationMinutes ?? 0), 0),
+          };
+          return [tour.id, summary] as const;
+        } catch {
+          return null;
+        }
+      })
+    ).then((results) => {
+      const map: Record<string, TournamentSummary> = {};
+      for (const entry of results) {
+        if (!entry) continue;
+        const [id, summary] = entry;
+        map[id] = summary;
+      }
+      setSummaries(map);
+    });
   }, []);
 
   async function handleAppLogoChange(logoUrl: string | null) {
@@ -81,6 +125,9 @@ export default function HomePage() {
               <li key={tour.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
                 <div>
                   <p className="font-medium text-white">{tour.name}</p>
+                  {summaries[tour.id] && (
+                    <p className="text-sm text-neutral-400">{summaryLine(t, summaries[tour.id])}</p>
+                  )}
                   <p className="text-xs text-neutral-500">
                     {new Date(tour.createdAt).toLocaleString()}
                   </p>

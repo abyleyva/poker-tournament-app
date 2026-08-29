@@ -19,6 +19,11 @@ const dictionaries = {
     home_open_admin: "Panel de control",
     home_open_display: "Pantalla del reloj",
     home_forget: "Quitar de esta lista",
+    home_summary_level: "nivel",
+    home_summary_levels: "niveles",
+    home_summary_break: "descanso",
+    home_summary_breaks: "descansos",
+    home_summary_total_time: "tiempo total",
 
     wizard_title: "Configura tu torneo",
     wizard_section_general: "Datos generales",
@@ -194,6 +199,11 @@ const dictionaries = {
     home_open_admin: "Control panel",
     home_open_display: "Clock display",
     home_forget: "Remove from this list",
+    home_summary_level: "level",
+    home_summary_levels: "levels",
+    home_summary_break: "break",
+    home_summary_breaks: "breaks",
+    home_summary_total_time: "total running time",
 
     wizard_title: "Set up your tournament",
     wizard_section_general: "General info",
