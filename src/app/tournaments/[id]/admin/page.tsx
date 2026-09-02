@@ -154,6 +154,12 @@ function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
   const display = useLiveCountdown(data.remainingSeconds, isRunning);
   const isLowTime = isRunning && display <= 30;
   const secondsToBreak = secondsUntilNextBreak(data.levels, data.currentLevelIndex, display);
+  // Human-facing level number: counts only blind levels (breaks aren't numbered),
+  // matching the numbering shown on the public clock display.
+  const levelNumber =
+    currentLevel && !currentLevel.isBreak
+      ? 1 + data.levels.slice(0, data.currentLevelIndex).filter((l: any) => !l.isBreak).length
+      : null;
 
   return (
     <div className="space-y-6">
@@ -165,7 +171,7 @@ function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
         ) : (
           <>
             <p className="text-sm uppercase tracking-wide text-neutral-500 mb-2">
-              {currentLevel.isBreak ? currentLevel.breakLabel : t("clock_current_level")}
+              {currentLevel.isBreak ? currentLevel.breakLabel : t("display_level_label", { n: levelNumber })}
             </p>
             <p className={`text-6xl font-mono font-bold ${isLowTime ? "clock-warning text-red-400" : "text-white"}`}>
               {formatClock(display)}
