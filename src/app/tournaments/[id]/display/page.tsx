@@ -261,6 +261,9 @@ export default function DisplayPage() {
           results={winnerResults}
           payouts={data.payouts ?? []}
           currency={data.currency}
+          name={data.name}
+          appLogoUrl={data.appLogoUrl}
+          tournamentLogoUrl={data.tournamentLogoUrl}
           onClose={() => setWinnerDismissed(true)}
         />
       )}

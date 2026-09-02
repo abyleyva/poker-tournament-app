@@ -51,15 +51,23 @@ export function WinnerCelebration({
   results,
   payouts,
   currency,
+  name,
+  appLogoUrl,
+  tournamentLogoUrl,
   onClose,
 }: {
   /** Ranked results, winner (rank 1) first. */
   results: ResultRow[];
   payouts: { position: number; amount: number }[];
   currency: string;
+  /** Tournament name, shown as a footer caption under both slides. */
+  name: string;
+  appLogoUrl?: string | null;
+  tournamentLogoUrl?: string | null;
   onClose: () => void;
 }) {
   const { t, lang } = useI18n();
+  const hasLogos = !!(appLogoUrl || tournamentLogoUrl);
   const [slide, setSlide] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fireRef = useRef<ReturnType<typeof confetti.create> | null>(null);
@@ -115,9 +123,37 @@ export function WinnerCelebration({
 
   if (!winner) return null;
 
+  // Diffuse glow rising from the bottom in the tournament's accent color,
+  // fading to black toward the top — same accent-driven theming used
+  // elsewhere on the display, just applied as a background wash here.
+  const backgroundStyle = {
+    background: "radial-gradient(ellipse 120% 65% at 50% 100%, var(--accent-900) 0%, #000000 70%)",
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black" aria-live="polite">
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-10">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={backgroundStyle} aria-live="polite">
+      {hasLogos && (
+        <header className="relative z-10 flex w-full items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-6 py-3 sm:px-10 sm:py-4">
+          <div className="flex h-10 sm:h-14 items-center">
+            {appLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={appLogoUrl} alt="" className="max-h-full max-w-[8rem] object-contain sm:max-w-[12rem]" />
+            )}
+          </div>
+          <div className="flex h-10 sm:h-14 items-center">
+            {tournamentLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={tournamentLogoUrl}
+                alt=""
+                className="max-h-full max-w-[8rem] object-contain sm:max-w-[12rem]"
+              />
+            )}
+          </div>
+        </header>
+      )}
+
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-8">
         {slide === 0 ? (
           <>
             <p className="mb-8 max-w-4xl text-center text-3xl font-extrabold uppercase tracking-wide text-white sm:text-5xl">
@@ -142,27 +178,27 @@ export function WinnerCelebration({
             </div>
           </>
         ) : (
-          <div className="w-full max-w-3xl">
-            <h2 className="mb-6 text-center text-2xl font-extrabold uppercase tracking-wide text-white sm:text-4xl">
+          <div className="w-full max-w-5xl">
+            <h2 className="mb-6 text-center text-3xl font-extrabold uppercase tracking-wide text-white sm:text-5xl">
               {t("display_final_results_title")}
             </h2>
-            <div className="max-h-[60vh] overflow-y-auto rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
-              <ol className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
+            <div className="max-h-[52vh] overflow-y-auto rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 sm:p-6">
+              <ol className="grid grid-cols-1 gap-x-10 gap-y-1 sm:grid-cols-2">
                 {results.map((p) => {
                   const amount = payouts.find((x) => x.position === p.rank)?.amount;
                   return (
                     <li
                       key={p.id}
-                      className="flex items-center gap-3 border-b border-neutral-800 py-2 last:border-0 sm:last:border-b"
+                      className="flex items-center gap-3 border-b border-neutral-800 py-3 last:border-0 sm:last:border-b"
                     >
-                      <span className="w-10 shrink-0 text-lg font-extrabold text-accent-400">
+                      <span className="w-12 shrink-0 text-lg font-extrabold text-accent-400 sm:text-xl">
                         {ordinal(p.rank, lang)}
                       </span>
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-xs font-bold text-white">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-xs font-bold text-white">
                         {initials(p.name)}
                       </span>
-                      <span className="flex-1 truncate text-white">{p.name}</span>
-                      <span className="shrink-0 font-semibold text-neutral-300">
+                      <span className="flex-1 truncate text-white sm:text-lg">{p.name}</span>
+                      <span className="shrink-0 font-semibold text-neutral-300 sm:text-lg">
                         {amount != null ? formatCurrency(amount, currency, "es-MX") : "—"}
                       </span>
                     </li>
@@ -186,6 +222,10 @@ export function WinnerCelebration({
             />
           ))}
         </div>
+
+        <p className="mt-6 max-w-4xl text-center text-3xl font-extrabold uppercase tracking-wide text-white sm:text-5xl">
+          {name}
+        </p>
       </div>
 
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-20 h-full w-full" />
@@ -194,7 +234,9 @@ export function WinnerCelebration({
         type="button"
         onClick={onClose}
         aria-label={t("display_close_winner")}
-        className="fixed right-5 top-5 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white transition-colors hover:bg-white/20"
+        className={`fixed right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white transition-colors hover:bg-white/20 ${
+          hasLogos ? "top-20 sm:top-24" : "top-5"
+        }`}
       >
         ×
       </button>
