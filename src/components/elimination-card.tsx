@@ -50,9 +50,10 @@ type Variant = "eliminated" | "bubble" | "cashed";
  * eliminated. Styled like a playing card. By default border/suit/title color
  * follows the tournament's selected accent color (via the `--accent-*` CSS
  * vars the page already sets). Two special variants override this:
- *  - "bubble": the first finish position just outside the paid places —
- *    shown in a neutral/gray tone, same title as the default "eliminated"
- *    card, with the subtitle swapped for a "so close" message.
+ *  - "bubble": the first finish position just outside the paid places — a
+ *    pivotal moment, so it gets a dramatic rose/red treatment with a
+ *    pulsing glow, same title as the default "eliminated" card, with the
+ *    subtitle swapped for a "so close" message.
  *  - "cashed": a paid finish position (excluding the top two, which get
  *    their own treatment elsewhere) — shows the dollar amount won in place
  *    of the usual title.
@@ -74,13 +75,13 @@ export function EliminationCard({ event, onDone }: { event: EliminationEvent; on
   }, [event.id]);
 
   const variant: Variant = event.prizeAmount != null ? "cashed" : event.isBubble ? "bubble" : "eliminated";
-  const neutral = variant === "bubble";
+  const isBubbleVariant = variant === "bubble";
 
-  const borderClass = neutral ? "border-neutral-500" : "border-accent-500";
-  const suitClass = neutral ? "text-neutral-400" : "text-accent-500";
-  const avatarBorderClass = neutral ? "border-neutral-500" : "border-accent-500";
-  const titleClass = neutral ? "text-neutral-300" : "text-accent-500";
-  const subtitleClass = neutral ? "text-neutral-500" : "text-accent-400";
+  const borderClass = isBubbleVariant ? "border-rose-500" : "border-accent-500";
+  const suitClass = isBubbleVariant ? "text-rose-500" : "text-accent-500";
+  const avatarBorderClass = isBubbleVariant ? "border-rose-500" : "border-accent-500";
+  const titleClass = isBubbleVariant ? "text-rose-400" : "text-accent-500";
+  const subtitleClass = isBubbleVariant ? "text-rose-300" : "text-accent-400";
 
   const titleText =
     variant === "cashed" ? formatCurrency(event.prizeAmount ?? 0, event.currency, "es-MX") : t("display_eliminated_title");
@@ -98,9 +99,11 @@ export function EliminationCard({ event, onDone }: { event: EliminationEvent; on
       aria-live="polite"
     >
       <div
-        className={`relative w-full max-w-sm rounded-3xl border-4 ${borderClass} bg-neutral-950 p-8 text-center shadow-2xl`}
+        className={`relative w-full max-w-sm rounded-3xl border-4 ${borderClass} bg-neutral-950 p-8 text-center shadow-2xl ${
+          isBubbleVariant && visible ? "bubble-card-glow" : ""
+        }`}
         style={{
-          transform: visible ? "scale(1)" : "scale(0.92)",
+          transform: visible ? undefined : "scale(0.92)",
           transition: `transform ${EXIT_MS}ms ease`,
         }}
       >

@@ -122,6 +122,16 @@ export function computePrizePayouts(pool: number, prizes: PrizeInput[]): PrizePa
     }));
 }
 
+/**
+ * True while the tournament is "on the bubble": exactly one more elimination
+ * stands between the field and the paid places, so whoever busts out next
+ * gets nothing while everyone after them cashes. Only meaningful once the
+ * clock has actually started and prizes are configured.
+ */
+export function isBubblePhase(paidPositions: number, activeCount: number, status: string): boolean {
+  return paidPositions > 0 && activeCount === paidPositions + 1 && status !== "draft" && status !== "finished";
+}
+
 export function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const m = Math.floor(safe / 60);

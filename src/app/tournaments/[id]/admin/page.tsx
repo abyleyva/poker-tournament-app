@@ -4,11 +4,12 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
-import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tournament-logic";
+import { formatClock, formatCurrency, isBubblePhase, secondsUntilNextBreak } from "@/lib/tournament-logic";
 import { saveLocalTournament } from "@/lib/local-tournaments";
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { THEME_COLOR_IDS, THEME_COLORS, themeVars, type ThemeColorId } from "@/lib/theme";
 import { LogoUploadField } from "@/components/logo-upload-field";
+import { BubbleBanner } from "@/components/bubble-banner";
 
 export default function AdminPage() {
   return (
@@ -93,6 +94,7 @@ function AdminPageInner() {
 
   const currentLevel = data.levels[data.currentLevelIndex];
   const nextLevel = data.levels[data.currentLevelIndex + 1];
+  const bubblePhase = isBubblePhase(data.payouts?.length ?? 0, data.stats.activeCount, data.status);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8" style={themeVars(data.themeColor)}>
@@ -102,6 +104,12 @@ function AdminPageInner() {
           {t(`clock_status_${data.status}` as any)}
         </span>
       </div>
+
+      {bubblePhase && (
+        <div className="mb-6 overflow-hidden rounded-xl">
+          <BubbleBanner />
+        </div>
+      )}
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-3 flex items-center justify-between gap-2">

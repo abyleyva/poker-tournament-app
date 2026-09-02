@@ -67,3 +67,35 @@ body {
   animation: winner-card-float 3.2s ease-in-out infinite;
 }
 
+@keyframes bubble-banner-glow {
+  0%,
+  100% {
+    background-color: rgba(159, 18, 57, 0.35);
+    box-shadow: inset 0 0 20px rgba(244, 63, 94, 0.15);
+  }
+  50% {
+    background-color: rgba(159, 18, 57, 0.55);
+    box-shadow: inset 0 0 32px rgba(244, 63, 94, 0.4);
+  }
+}
+
+.bubble-banner-glow {
+  animation: bubble-banner-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes bubble-card-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px 0 rgba(244, 63, 94, 0.35);
+  }
+  50% {
+    transform: scale(1.015);
+    box-shadow: 0 0 45px 8px rgba(244, 63, 94, 0.65);
+  }
+}
+
+.bubble-card-glow {
+  animation: bubble-card-glow 0.9s ease-in-out infinite;
+}
+

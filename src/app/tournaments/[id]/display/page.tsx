@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
-import { formatClock, formatCurrency, secondsUntilNextBreak } from "@/lib/tournament-logic";
+import { formatClock, formatCurrency, isBubblePhase, secondsUntilNextBreak } from "@/lib/tournament-logic";
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { themeVars } from "@/lib/theme";
 import { EliminationCard, type EliminationEvent } from "@/components/elimination-card";
 import { WinnerCelebration } from "@/components/winner-celebration";
+import { BubbleBanner } from "@/components/bubble-banner";
 
 function useLiveCountdown(remainingSeconds: number, isRunning: boolean) {
   const [display, setDisplay] = useState(remainingSeconds);
@@ -125,6 +126,7 @@ export default function DisplayPage() {
       : null;
 
   const hasLogos = !!(data.appLogoUrl || data.tournamentLogoUrl);
+  const bubblePhase = isBubblePhase(data.payouts?.length ?? 0, data.stats.activeCount, data.status);
 
   // The runner-up busting out auto-finishes the tournament server-side (see
   // updatePlayer in tournament-service.ts) — that combination (finished +
@@ -160,6 +162,8 @@ export default function DisplayPage() {
           </div>
         </header>
       )}
+
+      {bubblePhase && <BubbleBanner />}
 
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
         <h1 className="text-4xl sm:text-6xl font-extrabold uppercase tracking-wide text-white mb-8 text-center">
