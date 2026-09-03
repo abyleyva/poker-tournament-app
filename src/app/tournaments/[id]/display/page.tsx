@@ -125,7 +125,6 @@ export default function DisplayPage() {
       ? 1 + data.levels.slice(0, data.currentLevelIndex).filter((l: any) => !l.isBreak).length
       : null;
 
-  const hasLogos = !!(data.appLogoUrl || data.tournamentLogoUrl);
   const bubblePhase = isBubblePhase(data.payouts?.length ?? 0, data.stats.activeCount, data.status);
 
   // The runner-up busting out auto-finishes the tournament server-side (see
@@ -146,22 +145,30 @@ export default function DisplayPage() {
       className={`min-h-screen flex flex-col ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}
       style={themeVars(data.themeColor)}
     >
-      {hasLogos && (
-        <header className="flex w-full items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-6 py-3 sm:px-10 sm:py-4">
-          <div className="flex h-10 sm:h-14 items-center">
-            {data.appLogoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.appLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
-            )}
-          </div>
-          <div className="flex h-10 sm:h-14 items-center">
-            {data.tournamentLogoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.tournamentLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
-            )}
-          </div>
-        </header>
-      )}
+      <header className="grid w-full grid-cols-3 items-center gap-4 border-b border-white/10 bg-black/20 px-6 py-3 sm:px-10 sm:py-4">
+        <div className="flex h-10 sm:h-14 items-center justify-start">
+          {data.appLogoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.appLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
+          )}
+        </div>
+        <div className="flex items-center justify-center">
+          <a
+            href="https://www.abyleyva.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm sm:text-base text-neutral-400 transition-colors hover:text-accent-400"
+          >
+            by AbyLeyva
+          </a>
+        </div>
+        <div className="flex h-10 sm:h-14 items-center justify-end">
+          {data.tournamentLogoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.tournamentLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
+          )}
+        </div>
+      </header>
 
       {bubblePhase && <BubbleBanner />}
 

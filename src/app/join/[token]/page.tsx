@@ -32,26 +32,32 @@ export default function JoinPage() {
     setRebuySent(true);
   }
 
-  const hasLogos = !!(data.appLogoUrl || data.tournamentLogoUrl);
-
   return (
     <div className="min-h-screen flex flex-col" style={themeVars(data.themeColor)}>
-      {hasLogos && (
-        <header className="flex w-full items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-4 py-3">
-          <div className="flex h-8 sm:h-10 items-center">
-            {data.appLogoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.appLogoUrl} alt="" className="max-h-full max-w-[6rem] object-contain" />
-            )}
-          </div>
-          <div className="flex h-8 sm:h-10 items-center">
-            {data.tournamentLogoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.tournamentLogoUrl} alt="" className="max-h-full max-w-[6rem] object-contain" />
-            )}
-          </div>
-        </header>
-      )}
+      <header className="grid w-full grid-cols-3 items-center gap-2 border-b border-white/10 bg-black/20 px-4 py-3">
+        <div className="flex h-8 sm:h-10 items-center justify-start">
+          {data.appLogoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.appLogoUrl} alt="" className="max-h-full max-w-[6rem] object-contain" />
+          )}
+        </div>
+        <div className="flex items-center justify-center">
+          <a
+            href="https://www.abyleyva.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-neutral-400 transition-colors hover:text-accent-400"
+          >
+            by AbyLeyva
+          </a>
+        </div>
+        <div className="flex h-8 sm:h-10 items-center justify-end">
+          {data.tournamentLogoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.tournamentLogoUrl} alt="" className="max-h-full max-w-[6rem] object-contain" />
+          )}
+        </div>
+      </header>
 
       <div className="mx-auto w-full max-w-lg flex-1 px-4 py-8">
         <h1 className="text-xl font-bold text-white mb-1">{data.name}</h1>
