@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 export type ThemeColorId =
+  | "red"
   | "emerald"
   | "blue"
   | "violet"
@@ -26,6 +27,17 @@ type ThemeColorDef = {
 export const DEFAULT_THEME_COLOR: ThemeColorId = "emerald";
 
 export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
+  red: {
+    label: "Rojo",
+    swatch: "#ef4444",
+    vars: {
+      "--accent-300": "#fca5a5",
+      "--accent-400": "#f87171",
+      "--accent-500": "#ef4444",
+      "--accent-600": "#dc2626",
+      "--accent-900": "#7f1d1d",
+    },
+  },
   emerald: {
     label: "Verde",
     swatch: "#10b981",
