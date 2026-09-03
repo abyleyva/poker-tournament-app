@@ -182,7 +182,7 @@ export default function DisplayPage() {
         )}
 
         {data.status === "finished" && !winnerResults && (
-          <p className="text-4xl sm:text-6xl font-bold text-accent-400 text-center">{t("display_finished")}</p>
+          <p className="text-4xl sm:text-6xl font-bold text-accent-600 text-center">{t("display_finished")}</p>
         )}
 
         {(data.status === "running" || data.status === "paused") && currentLevel && (
@@ -205,7 +205,7 @@ export default function DisplayPage() {
             </p>
 
             {!isBreak && (
-              <p className="mt-6 text-4xl sm:text-6xl font-bold text-accent-400">
+              <p className="mt-6 text-4xl sm:text-6xl font-bold text-accent-600">
                 {currentLevel.smallBlind} / {currentLevel.bigBlind}
                 {currentLevel.ante ? (
                   <span className="text-2xl sm:text-4xl text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
@@ -251,7 +251,7 @@ export default function DisplayPage() {
             <p className="text-sm text-neutral-500">{t("display_entries")}</p>
           </div>
           <div>
-            <p className="text-3xl sm:text-4xl font-bold text-accent-400">
+            <p className="text-3xl sm:text-4xl font-bold text-accent-600">
               {formatCurrency(data.prizePool, data.currency, "es-MX")}
             </p>
             <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>
