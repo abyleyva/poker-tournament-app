@@ -99,10 +99,12 @@ export function EliminationCard({ event, onDone }: { event: EliminationEvent; on
       aria-live="polite"
     >
       <div
-        className={`relative w-full max-w-sm rounded-3xl border-4 ${borderClass} bg-neutral-950 p-8 text-center shadow-2xl ${
+        className={`relative flex w-full max-w-sm flex-col justify-center rounded-3xl border-4 ${borderClass} bg-neutral-950 p-8 text-center shadow-2xl ${
           isBubbleVariant && visible ? "bubble-card-glow" : ""
         }`}
         style={{
+          aspectRatio: "2.5 / 3.5",
+          maxHeight: "85vh",
           transform: visible ? undefined : "scale(0.92)",
           transition: `transform ${EXIT_MS}ms ease`,
         }}

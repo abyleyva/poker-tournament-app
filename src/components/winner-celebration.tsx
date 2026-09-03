@@ -159,7 +159,10 @@ export function WinnerCelebration({
             <p className="mb-8 max-w-4xl text-center text-3xl font-extrabold uppercase tracking-wide text-white sm:text-5xl">
               {t("display_winner_header", { name: winner.name })}
             </p>
-            <div className="winner-card-float relative w-full max-w-sm rounded-3xl border-4 border-accent-500 bg-neutral-950 p-8 text-center shadow-2xl">
+            <div
+              className="winner-card-float relative flex w-full max-w-sm flex-col justify-center rounded-3xl border-4 border-accent-500 bg-neutral-950 p-8 text-center shadow-2xl"
+              style={{ aspectRatio: "2.5 / 3.5", maxHeight: "85vh" }}
+            >
               <span aria-hidden className="absolute left-5 top-5 text-2xl text-accent-500">
                 ♥
               </span>
