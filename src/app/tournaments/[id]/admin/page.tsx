@@ -414,9 +414,15 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                 {p.status === "active" ? (
                   <button
                     onClick={() => {
-                      const posStr = prompt(t("players_finish_position") + "?");
-                      const finishPosition = posStr ? Number(posStr) : null;
-                      patchPlayer(p.id, { eliminate: true, finishPosition });
+                      // Finish position is assigned automatically from how many
+                      // players are still active right now: the one being
+                      // eliminated is necessarily the worst-placed of that
+                      // group, so they take that exact number (e.g. eliminating
+                      // someone when 5 players are active makes them 5th).
+                      // Counting down this way naturally lands on 2 (runner-up)
+                      // for the second-to-last elimination, which is what
+                      // triggers the automatic "tournament finished" state.
+                      patchPlayer(p.id, { eliminate: true, finishPosition: data.stats.activeCount });
                     }}
                     className="rounded-lg border border-red-800 px-3 py-1.5 text-xs text-red-400 hover:border-red-600"
                   >
