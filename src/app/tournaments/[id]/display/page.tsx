@@ -142,10 +142,19 @@ export default function DisplayPage() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col ${isBreak ? "bg-amber-950" : "bg-neutral-950"}`}
-      style={themeVars(data.themeColor)}
+      className={`min-h-screen flex flex-col ${isBreak ? "" : "bg-neutral-950"}`}
+      style={{
+        ...themeVars(data.themeColor),
+        ...(isBreak
+          ? { background: "radial-gradient(ellipse 120% 65% at 50% 100%, #92400e 0%, #451a03 55%, #000000 100%)" }
+          : {}),
+      }}
     >
-      <header className="grid w-full grid-cols-3 items-center gap-4 border-b border-white/10 bg-black/20 px-6 py-3 sm:px-10 sm:py-4">
+      <header
+        className={`grid w-full grid-cols-3 items-center gap-4 border-b border-white/10 px-6 py-3 sm:px-10 sm:py-4 ${
+          isBreak ? "bg-gradient-to-b from-black/40 to-transparent" : "bg-black/20"
+        }`}
+      >
         <div className="flex h-10 sm:h-14 items-center justify-start">
           {data.appLogoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
