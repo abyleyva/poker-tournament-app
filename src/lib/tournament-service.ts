@@ -214,12 +214,48 @@ export async function updateAppLogo(logoUrl: string | null) {
   return getAppSettings();
 }
 
+// Once a tournament has left "draft" (the clock has started at least once),
+// existing blind levels can no longer be edited, reordered, or removed — only
+// new ones appended at the end. This lets the organizer keep a tournament
+// going past its originally-planned last level (e.g. players are still
+// active when the clock is about to run out) without being able to rewrite
+// levels that have already been played or are currently in progress.
+function assertLevelsAppendOnly(existing: { order: number; isBreak: boolean; smallBlind: number | null; bigBlind: number | null; ante: number | null; durationMinutes: number; breakLabel: string | null }[], incoming: LevelInput[]) {
+  if (incoming.length < existing.length) {
+    throw new ValidationError(
+      "El torneo ya inició: no se pueden quitar ni reordenar niveles existentes, solo agregar nuevos al final."
+    );
+  }
+
+  const sortedExisting = [...existing].sort((a, b) => a.order - b.order);
+  const sortedIncoming = [...incoming].sort((a, b) => a.order - b.order);
+
+  for (let i = 0; i < sortedExisting.length; i++) {
+    const before = sortedExisting[i];
+    const after = sortedIncoming[i];
+    const sameLevel =
+      before.isBreak === after.isBreak &&
+      before.durationMinutes === after.durationMinutes &&
+      (before.isBreak
+        ? (before.breakLabel ?? "") === (after.breakLabel ?? "")
+        : (before.smallBlind ?? 0) === (after.smallBlind ?? 0) &&
+          (before.bigBlind ?? 0) === (after.bigBlind ?? 0) &&
+          (before.ante ?? 0) === (after.ante ?? 0));
+
+    if (!sameLevel) {
+      throw new ValidationError(
+        "El torneo ya inició: los niveles existentes no se pueden editar, solo puedes agregar nuevos al final."
+      );
+    }
+  }
+}
+
 export async function updateTournamentSettings(
   tournamentId: string,
   adminToken: string,
   patch: Partial<CreateTournamentInput>
 ) {
-  const { tournament } = await fetchFull(tournamentId);
+  const { tournament, levels: existingLevels } = await fetchFull(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
 
   const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -246,6 +282,10 @@ export async function updateTournamentSettings(
   await db.update(tournaments).set(updates).where(eq(tournaments.id, tournamentId));
 
   if (patch.levels) {
+    if (tournament.status !== "draft") {
+      assertLevelsAppendOnly(existingLevels, patch.levels);
+    }
+
     await db.delete(blindLevels).where(eq(blindLevels.tournamentId, tournamentId));
     if (patch.levels.length > 0) {
       await db.insert(blindLevels).values(

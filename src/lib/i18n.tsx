@@ -74,6 +74,7 @@ const dictionaries = {
     admin_tab_clock: "Reloj",
     admin_tab_players: "Jugadores",
     admin_tab_prizes: "Premios",
+    admin_tab_levels: "Niveles",
     admin_tab_settings: "Configuración",
     admin_share_display: "Compartir pantalla del reloj",
     admin_share_admin: "Link de administrador (no lo compartas)",
@@ -130,6 +131,11 @@ const dictionaries = {
     prizes_percentage: "Porcentaje",
     prizes_amount: "Monto",
     prizes_none: "No has definido premios todavía.",
+
+    levels_locked_hint: "El torneo ya inició: los niveles existentes no se pueden editar, pero puedes agregar nuevos al final para seguir jugando.",
+    levels_save: "Guardar niveles",
+    levels_saved: "Niveles guardados",
+    levels_new_badge: "Nuevo",
 
     settings_title: "Configuración del torneo",
     settings_save: "Guardar cambios",
@@ -262,6 +268,7 @@ const dictionaries = {
     admin_tab_clock: "Clock",
     admin_tab_players: "Players",
     admin_tab_prizes: "Prizes",
+    admin_tab_levels: "Levels",
     admin_tab_settings: "Settings",
     admin_share_display: "Share clock display",
     admin_share_admin: "Admin link (keep it private)",
@@ -318,6 +325,11 @@ const dictionaries = {
     prizes_percentage: "Percentage",
     prizes_amount: "Amount",
     prizes_none: "You haven't defined any prizes yet.",
+
+    levels_locked_hint: "The tournament has already started: existing levels can't be edited, but you can add new ones at the end to keep playing.",
+    levels_save: "Save levels",
+    levels_saved: "Levels saved",
+    levels_new_badge: "New",
 
     settings_title: "Tournament settings",
     settings_save: "Save changes",

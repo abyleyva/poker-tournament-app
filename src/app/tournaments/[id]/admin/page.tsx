@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
@@ -63,7 +63,7 @@ function AdminPageInner() {
     2500
   );
 
-  const [tab, setTab] = useState<"clock" | "players" | "prizes" | "settings">("clock");
+  const [tab, setTab] = useState<"clock" | "players" | "prizes" | "levels" | "settings">("clock");
 
   useEffect(() => {
     if (data?.isAdmin && data?.name) {
@@ -129,7 +129,7 @@ function AdminPageInner() {
       </div>
 
       <div className="flex gap-2 border-b border-neutral-800 mb-6">
-        {(["clock", "players", "prizes", "settings"] as const).map((tabKey) => (
+        {(["clock", "players", "prizes", "levels", "settings"] as const).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -149,6 +149,7 @@ function AdminPageInner() {
       )}
       {tab === "players" && <PlayersTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "prizes" && <PrizesTab data={data} />}
+      {tab === "levels" && <LevelsTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "settings" && <SettingsTab data={data} id={id} adminToken={adminToken} setData={setData} />}
     </div>
   );
@@ -478,6 +479,328 @@ function PrizesTab({ data }: any) {
           </tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+type LevelRow = {
+  key: string;
+  // True once this row has been persisted to the server. Once the
+  // tournament leaves "draft", existing rows become read-only — only rows
+  // added in this session (existing: false) can still be edited or removed,
+  // and they can only be appended after the existing ones.
+  existing: boolean;
+  isBreak: boolean;
+  smallBlind: number | "";
+  bigBlind: number | "";
+  ante: number | "";
+  durationMinutes: number | "";
+  breakLabel: string;
+};
+
+function serverLevelsToRows(levels: any[]): LevelRow[] {
+  return levels.map((l) => ({
+    key: l.id,
+    existing: true,
+    isBreak: l.isBreak,
+    smallBlind: l.smallBlind ?? "",
+    bigBlind: l.bigBlind ?? "",
+    ante: l.ante ?? "",
+    durationMinutes: l.durationMinutes,
+    breakLabel: l.breakLabel ?? "",
+  }));
+}
+
+function LevelsTab({ data, id, adminToken, setData }: any) {
+  const { t, lang } = useI18n();
+  const locked = data.status !== "draft";
+
+  const [levels, setLevels] = useState<LevelRow[]>(() => serverLevelsToRows(data.levels));
+  const [linkDurations, setLinkDurations] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const newKeyRef = useRef(0);
+  function nextKey() {
+    newKeyRef.current += 1;
+    return `new-${newKeyRef.current}`;
+  }
+
+  // Consecutive level numbering that skips breaks entirely, matching the
+  // numbering shown on the clock tab and the public display.
+  const levelNumbers = useMemo(() => {
+    let counter = 0;
+    return levels.map((l) => {
+      if (l.isBreak) return null;
+      counter += 1;
+      return counter;
+    });
+  }, [levels]);
+
+  function updateLevel(key: string, patch: Partial<LevelRow>) {
+    setLevels((prev) =>
+      prev.map((l) => (l.key === key && (!locked || !l.existing) ? { ...l, ...patch } : l))
+    );
+  }
+
+  function updateLevelDuration(key: string, durationMinutes: number | "") {
+    if (linkDurations) {
+      // "Edit together" mode: applies to every level and break this session
+      // is still allowed to touch — existing rows stay put once locked.
+      setLevels((prev) => prev.map((l) => (locked && l.existing ? l : { ...l, durationMinutes })));
+    } else {
+      updateLevel(key, { durationMinutes });
+    }
+  }
+
+  function addLevel() {
+    const last = [...levels].reverse().find((l) => !l.isBreak);
+    setLevels((prev) => [
+      ...prev,
+      {
+        key: nextKey(),
+        existing: false,
+        isBreak: false,
+        smallBlind: last ? Number(last.smallBlind) * 2 : 25,
+        bigBlind: last ? Number(last.bigBlind) * 2 : 50,
+        ante: last ? last.ante : 0,
+        durationMinutes: last ? last.durationMinutes : 15,
+        breakLabel: "",
+      },
+    ]);
+  }
+
+  function addBreak() {
+    setLevels((prev) => [
+      ...prev,
+      {
+        key: nextKey(),
+        existing: false,
+        isBreak: true,
+        smallBlind: "",
+        bigBlind: "",
+        ante: "",
+        durationMinutes: 15,
+        breakLabel: lang === "es" ? "Descanso" : "Break",
+      },
+    ]);
+  }
+
+  function removeLevel(key: string) {
+    setLevels((prev) => {
+      const row = prev.find((l) => l.key === key);
+      if (!row) return prev;
+      if (locked && row.existing) return prev;
+      if (prev.length <= 1) return prev;
+      return prev.filter((l) => l.key !== key);
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        adminToken,
+        levels: levels.map((l, idx) => ({
+          order: idx,
+          isBreak: l.isBreak,
+          smallBlind: l.isBreak ? null : Number(l.smallBlind) || 0,
+          bigBlind: l.isBreak ? null : Number(l.bigBlind) || 0,
+          ante: l.isBreak ? null : Number(l.ante) || 0,
+          durationMinutes: Number(l.durationMinutes) || 1,
+          breakLabel: l.isBreak ? l.breakLabel || (lang === "es" ? "Descanso" : "Break") : null,
+        })),
+      };
+      const res = await fetch(`/api/tournaments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("wizard_error_generic"));
+      setData(json);
+      setLevels(serverLevelsToRows(json.levels));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-accent-500 focus:outline-none disabled:opacity-50";
+  const labelClass = "block text-xs font-medium text-neutral-400 mb-1";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+          <h3 className="font-semibold text-white">{t("wizard_section_levels")}</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setLinkDurations((v) => !v)}
+              title={t("wizard_level_link_duration_hint")}
+              aria-pressed={linkDurations}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                linkDurations
+                  ? "bg-accent-600 text-white hover:bg-accent-500"
+                  : "border border-neutral-700 text-neutral-200 hover:border-neutral-500"
+              }`}
+            >
+              🔗 {t("wizard_level_link_duration")}
+            </button>
+            <button
+              type="button"
+              onClick={addLevel}
+              className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-500"
+            >
+              {t("wizard_level_add")}
+            </button>
+            <button
+              type="button"
+              onClick={addBreak}
+              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 hover:border-neutral-500"
+            >
+              {t("wizard_level_add_break")}
+            </button>
+          </div>
+        </div>
+        {locked && <p className="mb-3 text-xs text-amber-400">{t("levels_locked_hint")}</p>}
+        {linkDurations && (
+          <p className="mb-3 text-xs text-accent-400">{t("wizard_level_link_duration_hint")}</p>
+        )}
+
+        <div className="space-y-3">
+          {levels.map((l, idx) => {
+            const rowLocked = locked && l.existing;
+            return (
+              <div
+                key={l.key}
+                className={`rounded-xl border p-3 ${
+                  l.isBreak ? "border-amber-700/60 bg-amber-900/10" : "border-neutral-800"
+                } ${rowLocked ? "opacity-70" : ""}`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-neutral-300">
+                    {l.isBreak ? t("wizard_level_break") : t("wizard_level_number", { n: levelNumbers[idx] ?? idx + 1 })}
+                    {locked && !l.existing && (
+                      <span className="rounded-full bg-accent-900/50 px-2 py-0.5 text-xs text-accent-300">
+                        {t("levels_new_badge")}
+                      </span>
+                    )}
+                  </span>
+                  {!rowLocked && (
+                    <button
+                      type="button"
+                      onClick={() => removeLevel(l.key)}
+                      className="text-xs text-neutral-500 hover:text-red-400"
+                    >
+                      {t("wizard_level_remove")}
+                    </button>
+                  )}
+                </div>
+                {l.isBreak ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className={labelClass}>{t("wizard_level_break_label")}</label>
+                      <input
+                        className={inputClass}
+                        value={l.breakLabel}
+                        disabled={rowLocked}
+                        onChange={(e) => updateLevel(l.key, { breakLabel: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t("wizard_level_duration")}</label>
+                      <input
+                        type="number"
+                        min={1}
+                        className={inputClass}
+                        value={l.durationMinutes}
+                        disabled={rowLocked}
+                        onChange={(e) =>
+                          updateLevelDuration(l.key, e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div>
+                      <label className={labelClass}>{t("wizard_level_small")}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className={inputClass}
+                        value={l.smallBlind}
+                        disabled={rowLocked}
+                        onChange={(e) =>
+                          updateLevel(l.key, { smallBlind: e.target.value === "" ? "" : Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t("wizard_level_big")}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className={inputClass}
+                        value={l.bigBlind}
+                        disabled={rowLocked}
+                        onChange={(e) =>
+                          updateLevel(l.key, { bigBlind: e.target.value === "" ? "" : Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t("wizard_level_ante")}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className={inputClass}
+                        value={l.ante}
+                        disabled={rowLocked}
+                        onChange={(e) =>
+                          updateLevel(l.key, { ante: e.target.value === "" ? "" : Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t("wizard_level_duration")}</label>
+                      <input
+                        type="number"
+                        min={1}
+                        className={inputClass}
+                        value={l.durationMinutes}
+                        disabled={rowLocked}
+                        onChange={(e) =>
+                          updateLevelDuration(l.key, e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        className="rounded-xl bg-accent-600 px-5 py-2.5 font-semibold text-white hover:bg-accent-500 disabled:opacity-60"
+      >
+        {saved ? t("levels_saved") : t("levels_save")}
+      </button>
     </div>
   );
 }
