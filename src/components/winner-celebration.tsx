@@ -133,14 +133,14 @@ export function WinnerCelebration({
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={backgroundStyle} aria-live="polite">
       {hasLogos && (
-        <header className="relative z-10 flex w-full items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-6 py-3 sm:px-10 sm:py-4">
-          <div className="flex h-10 sm:h-14 items-center">
+        <header className="relative z-10 flex w-full shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-6 py-2 sm:px-10 sm:py-3">
+          <div className="flex h-8 sm:h-11 items-center">
             {appLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={appLogoUrl} alt="" className="max-h-full max-w-[8rem] object-contain sm:max-w-[12rem]" />
             )}
           </div>
-          <div className="flex h-10 sm:h-14 items-center">
+          <div className="flex h-8 sm:h-11 items-center">
             {tournamentLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -153,15 +153,15 @@ export function WinnerCelebration({
         </header>
       )}
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-8">
+      <div className="relative z-10 flex flex-1 min-h-0 flex-col items-center justify-center overflow-hidden px-6 py-[1.5vh]">
         {slide === 0 ? (
           <>
-            <p className="mb-8 max-w-4xl text-center text-3xl font-extrabold uppercase tracking-wide text-white sm:text-5xl">
+            <p className="mb-[clamp(0.4rem,1.8vh,2rem)] max-w-4xl text-center text-[clamp(1.25rem,3.6vh,3rem)] font-extrabold uppercase tracking-wide text-white">
               {t("display_winner_header", { name: winner.name })}
             </p>
             <div
-              className="winner-card-float relative flex w-full max-w-sm flex-col justify-center rounded-3xl border-4 border-accent-500 bg-neutral-950 p-8 text-center shadow-2xl"
-              style={{ aspectRatio: "2.5 / 3.5", maxHeight: "85vh" }}
+              className="winner-card-float relative flex w-full max-w-sm flex-col justify-center rounded-3xl border-4 border-accent-500 bg-neutral-950 p-[clamp(1rem,3vh,2rem)] text-center shadow-2xl"
+              style={{ aspectRatio: "2.5 / 3.5", height: "clamp(200px, 42vh, 420px)" }}
             >
               <span aria-hidden className="absolute left-5 top-5 text-2xl text-accent-500">
                 ♥
@@ -169,15 +169,15 @@ export function WinnerCelebration({
               <span aria-hidden className="absolute bottom-5 right-5 rotate-180 text-2xl text-accent-500">
                 ♥
               </span>
-              <div className="mx-auto mb-6 flex h-28 w-28 items-center justify-center rounded-full border-4 border-accent-500 bg-neutral-800 sm:h-32 sm:w-32">
-                <span className="text-3xl font-extrabold text-white sm:text-4xl">{initials(winner.name)}</span>
+              <div className="mx-auto mb-[clamp(0.4rem,2vh,1.5rem)] flex h-[clamp(3.5rem,10vh,8rem)] w-[clamp(3.5rem,10vh,8rem)] items-center justify-center rounded-full border-4 border-accent-500 bg-neutral-800">
+                <span className="text-[clamp(1.1rem,3vh,2.25rem)] font-extrabold text-white">{initials(winner.name)}</span>
               </div>
-              <p className="text-3xl font-extrabold tracking-wide text-accent-500 sm:text-4xl">
+              <p className="text-[clamp(1.1rem,3.2vh,2.25rem)] font-extrabold tracking-wide text-accent-500">
                 {formatCurrency(winnerAmount, currency, "es-MX")}
               </p>
-              <p className="mt-2 text-base font-semibold text-accent-400 sm:text-lg">{t("display_winner_badge")}</p>
-              <p className="mt-6 truncate text-xl font-bold text-white sm:text-2xl">{winner.name}</p>
-              <p className="mt-2 text-sm font-semibold text-neutral-400">{t("display_winner_place")}</p>
+              <p className="mt-[clamp(0.15rem,0.6vh,0.5rem)] text-[clamp(0.75rem,1.8vh,1.125rem)] font-semibold text-accent-400">{t("display_winner_badge")}</p>
+              <p className="mt-[clamp(0.3rem,1.6vh,1.5rem)] truncate text-[clamp(0.9rem,2.2vh,1.5rem)] font-bold text-white">{winner.name}</p>
+              <p className="mt-[clamp(0.1rem,0.5vh,0.5rem)] text-[clamp(0.65rem,1.3vh,0.875rem)] font-semibold text-neutral-400">{t("display_winner_place")}</p>
             </div>
           </>
         ) : (
@@ -212,7 +212,7 @@ export function WinnerCelebration({
           </div>
         )}
 
-        <div className="mt-8 flex items-center gap-2">
+        <div className="mt-[clamp(0.4rem,2vh,2rem)] flex shrink-0 items-center gap-2">
           {[0, 1].map((i) => (
             <button
               key={i}
@@ -226,7 +226,7 @@ export function WinnerCelebration({
           ))}
         </div>
 
-        <p className="mt-6 max-w-4xl text-center text-3xl font-extrabold uppercase tracking-wide text-white sm:text-5xl">
+        <p className="mt-[clamp(0.3rem,1.6vh,1.5rem)] max-w-4xl shrink-0 text-center text-[clamp(1.1rem,3.2vh,3rem)] font-extrabold uppercase tracking-wide text-white">
           {name}
         </p>
       </div>
