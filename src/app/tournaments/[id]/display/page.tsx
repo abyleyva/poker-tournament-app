@@ -142,7 +142,7 @@ export default function DisplayPage() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col ${isBreak ? "" : "bg-neutral-950"}`}
+      className={`h-screen overflow-hidden flex flex-col ${isBreak ? "" : "bg-neutral-950"}`}
       style={{
         ...themeVars(data.themeColor),
         ...(isBreak
@@ -151,11 +151,11 @@ export default function DisplayPage() {
       }}
     >
       <header
-        className={`grid w-full grid-cols-3 items-center gap-4 border-b border-white/10 px-6 py-3 sm:px-10 sm:py-4 ${
+        className={`grid w-full shrink-0 grid-cols-3 items-center gap-4 border-b border-white/10 px-6 py-2 sm:px-10 sm:py-3 ${
           isBreak ? "bg-gradient-to-b from-black/40 to-transparent" : "bg-black/20"
         }`}
       >
-        <div className="flex h-10 sm:h-14 items-center justify-start">
+        <div className="flex h-8 sm:h-11 items-center justify-start">
           {data.appLogoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={data.appLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
@@ -171,7 +171,7 @@ export default function DisplayPage() {
             by AbyLeyva
           </a>
         </div>
-        <div className="flex h-10 sm:h-14 items-center justify-end">
+        <div className="flex h-8 sm:h-11 items-center justify-end">
           {data.tournamentLogoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={data.tournamentLogoUrl} alt="" className="max-h-full max-w-[8rem] sm:max-w-[12rem] object-contain" />
@@ -181,8 +181,8 @@ export default function DisplayPage() {
 
       {bubblePhase && <BubbleBanner />}
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
-        <h1 className="text-4xl sm:text-6xl font-extrabold uppercase tracking-wide text-white mb-8 text-center">
+      <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-hidden px-6 py-[1vh]">
+        <h1 className="text-[clamp(1.5rem,4.2vh,3.75rem)] font-extrabold uppercase tracking-wide text-white mb-[clamp(0.4rem,1.6vh,2rem)] text-center">
           {data.name}
         </h1>
 
@@ -191,39 +191,39 @@ export default function DisplayPage() {
         )}
 
         {data.status === "finished" && !winnerResults && (
-          <p className="text-4xl sm:text-6xl font-bold text-accent-600 text-center">{t("display_finished")}</p>
+          <p className="text-[clamp(1.75rem,5.5vh,3.75rem)] font-bold text-accent-600 text-center">{t("display_finished")}</p>
         )}
 
         {(data.status === "running" || data.status === "paused") && currentLevel && (
           <>
             {isBreak ? (
-              <p className="text-2xl sm:text-3xl font-bold text-amber-400 tracking-widest mb-2">
+              <p className="text-[clamp(1.1rem,2.6vh,1.875rem)] font-bold text-amber-400 tracking-widest mb-[clamp(0.2rem,0.6vh,0.5rem)]">
                 {currentLevel.breakLabel || t("display_break")}
               </p>
             ) : (
-              <p className="text-xl sm:text-2xl font-bold uppercase tracking-widest text-neutral-400 mb-2">
+              <p className="text-[clamp(0.9rem,2vh,1.5rem)] font-bold uppercase tracking-widest text-neutral-400 mb-[clamp(0.2rem,0.6vh,0.5rem)]">
                 {t("display_level_label", { n: levelNumber })}
               </p>
             )}
             <p
               className={`font-mono font-bold leading-none ${
                 isLowTime ? "clock-warning text-red-400" : "text-white"
-              } text-[18vw] sm:text-[12rem]`}
+              } text-[min(18vw,17vh)]`}
             >
               {formatClock(display)}
             </p>
 
             {!isBreak && (
-              <p className="mt-6 text-4xl sm:text-6xl font-bold text-accent-600">
+              <p className="mt-[clamp(0.4rem,1.4vh,1.5rem)] text-[clamp(1.3rem,3.6vh,3.75rem)] font-bold text-accent-600">
                 {currentLevel.smallBlind} / {currentLevel.bigBlind}
                 {currentLevel.ante ? (
-                  <span className="text-2xl sm:text-4xl text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
+                  <span className="text-[clamp(0.9rem,2.4vh,2.25rem)] text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
                 ) : null}
               </p>
             )}
 
             {nextLevel && (
-              <p className="mt-4 text-lg sm:text-2xl text-neutral-500">
+              <p className="mt-[clamp(0.25rem,0.9vh,1rem)] text-[clamp(0.8rem,1.5vh,1.5rem)] text-neutral-500">
                 {t("clock_next_level")}:{" "}
                 {nextLevel.isBreak
                   ? nextLevel.breakLabel
@@ -233,13 +233,13 @@ export default function DisplayPage() {
               </p>
             )}
 
-            <div className="mt-8 w-full max-w-3xl">
+            <div className="mt-[clamp(0.4rem,1.8vh,2rem)] w-full max-w-3xl">
               <TournamentTimeline
                 levels={data.levels}
                 currentLevelIndex={data.currentLevelIndex}
                 remainingSeconds={display}
               />
-              <p className="mt-2 text-center text-sm text-neutral-500">
+              <p className="mt-[clamp(0.15rem,0.5vh,0.5rem)] text-center text-sm text-neutral-500">
                 {isBreak
                   ? t("clock_on_break")
                   : secondsToBreak == null
@@ -250,24 +250,24 @@ export default function DisplayPage() {
           </>
         )}
 
-        <div className="mt-10 grid grid-cols-3 gap-6 text-center">
+        <div className="mt-[clamp(0.5rem,2.2vh,2.5rem)] grid grid-cols-3 gap-6 text-center">
           <div>
-            <p className="text-3xl sm:text-4xl font-bold text-white">{data.stats.activeCount}</p>
+            <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-white">{data.stats.activeCount}</p>
             <p className="text-sm text-neutral-500">{t("clock_players_left")}</p>
           </div>
           <div>
-            <p className="text-3xl sm:text-4xl font-bold text-white">{data.stats.entriesCount}</p>
+            <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-white">{data.stats.entriesCount}</p>
             <p className="text-sm text-neutral-500">{t("display_entries")}</p>
           </div>
           <div>
-            <p className="text-3xl sm:text-4xl font-bold text-accent-600">
+            <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-accent-600">
               {formatCurrency(data.prizePool, data.currency, "es-MX")}
             </p>
             <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>
           </div>
         </div>
 
-        <p className="mt-10 text-sm text-neutral-600 text-center">{t("display_scan_hint")}</p>
+        <p className="mt-[clamp(0.5rem,2vh,2.5rem)] text-sm text-neutral-600 text-center">{t("display_scan_hint")}</p>
       </div>
 
       {eliminationEvent && <EliminationCard event={eliminationEvent} onDone={dismissElimination} />}
