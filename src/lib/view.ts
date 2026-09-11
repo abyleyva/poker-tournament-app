@@ -73,6 +73,7 @@ export function serializeTournament(params: {
     status: tournament.status,
     currentLevelIndex: tournament.currentLevelIndex,
     themeColor: tournament.themeColor,
+    screenLayout: tournament.screenLayout,
     tournamentLogoUrl: tournament.logoUrl ?? null,
     appLogoUrl: appLogoUrl ?? null,
     remainingSeconds: remaining,

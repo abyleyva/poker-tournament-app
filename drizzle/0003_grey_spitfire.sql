@@ -1,0 +1,1 @@
+ALTER TABLE "tournaments" ADD COLUMN "screen_layout" text DEFAULT 'all_data' NOT NULL;

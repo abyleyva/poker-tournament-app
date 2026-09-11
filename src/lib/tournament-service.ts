@@ -4,6 +4,7 @@ import { appSettings, blindLevels, players, prizes, tournaments } from "@/db/sch
 import { generateToken } from "./tokens";
 import { computeAdvancedClock } from "./tournament-logic";
 import { DEFAULT_THEME_COLOR, isThemeColorId } from "./theme";
+import { DEFAULT_SCREEN_LAYOUT, isScreenLayoutId } from "./screen-layout";
 
 // Logos are stored inline as data URLs (no external file storage configured
 // for this project), so we cap how large one can be to keep DB rows small.
@@ -46,6 +47,7 @@ export type CreateTournamentInput = {
   addOnPrice?: number | null;
   addOnStack?: number | null;
   themeColor?: string | null;
+  screenLayout?: string | null;
   logoUrl?: string | null;
   levels: LevelInput[];
   prizes: PrizeInputRow[];
@@ -80,6 +82,7 @@ export async function createTournament(input: CreateTournamentInput) {
       logoUrl: input.logoUrl || null,
       addOnStack: input.allowAddOn ? input.addOnStack ?? input.startingStack : null,
       themeColor: isThemeColorId(input.themeColor) ? input.themeColor : DEFAULT_THEME_COLOR,
+      screenLayout: isScreenLayoutId(input.screenLayout) ? input.screenLayout : DEFAULT_SCREEN_LAYOUT,
       status: "draft",
       currentLevelIndex: 0,
       adminToken,
@@ -273,6 +276,9 @@ export async function updateTournamentSettings(
   if (patch.addOnStack !== undefined) updates.addOnStack = patch.addOnStack;
   if (patch.themeColor !== undefined && isThemeColorId(patch.themeColor)) {
     updates.themeColor = patch.themeColor;
+  }
+  if (patch.screenLayout !== undefined && isScreenLayoutId(patch.screenLayout)) {
+    updates.screenLayout = patch.screenLayout;
   }
   if (patch.logoUrl !== undefined) {
     assertValidLogoUrl(patch.logoUrl);

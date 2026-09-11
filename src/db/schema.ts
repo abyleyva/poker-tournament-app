@@ -35,6 +35,12 @@ export const tournaments = pgTable("tournaments", {
   // One of the ids in src/lib/theme.ts (THEME_COLORS) — "emerald" by default.
   themeColor: text("theme_color").notNull().default("emerald"),
 
+  // Which sections show on the public clock display (/display). One of the
+  // ids in src/lib/screen-layout.ts — "all_data" by default (shows
+  // everything, matching the app's original display before this setting
+  // existed).
+  screenLayout: text("screen_layout").notNull().default("all_data"),
+
   // Per-tournament logo (data URL), shown on the public display and the
   // player invite screen alongside the app-wide logo (see appSettings).
   logoUrl: text("logo_url"),

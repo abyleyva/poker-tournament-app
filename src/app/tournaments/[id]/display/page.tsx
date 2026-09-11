@@ -7,6 +7,7 @@ import { useTournamentPoll } from "@/lib/use-tournament-poll";
 import { formatClock, formatCurrency, isBubblePhase, secondsUntilNextBreak } from "@/lib/tournament-logic";
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { themeVars } from "@/lib/theme";
+import { DEFAULT_SCREEN_LAYOUT, isScreenLayoutId } from "@/lib/screen-layout";
 import { EliminationCard, type EliminationEvent } from "@/components/elimination-card";
 import { WinnerCelebration } from "@/components/winner-celebration";
 import { BubbleBanner } from "@/components/bubble-banner";
@@ -126,6 +127,9 @@ export default function DisplayPage() {
       : null;
 
   const bubblePhase = isBubblePhase(data.payouts?.length ?? 0, data.stats.activeCount, data.status);
+  const screenLayout = isScreenLayoutId(data.screenLayout) ? data.screenLayout : DEFAULT_SCREEN_LAYOUT;
+  const showCurrentBlindsBox = !isBreak;
+  const showNextBlindsBox = screenLayout !== "simple" && !!nextLevel;
 
   // The runner-up busting out auto-finishes the tournament server-side (see
   // updatePlayer in tournament-service.ts) — that combination (finished +
@@ -213,26 +217,6 @@ export default function DisplayPage() {
               {formatClock(display)}
             </p>
 
-            {!isBreak && (
-              <p className="mt-[clamp(0.4rem,1.4vh,1.5rem)] text-[clamp(1.3rem,3.6vh,3.75rem)] font-bold text-accent-600">
-                {currentLevel.smallBlind} / {currentLevel.bigBlind}
-                {currentLevel.ante ? (
-                  <span className="text-[clamp(0.9rem,2.4vh,2.25rem)] text-neutral-400"> · {t("clock_ante")} {currentLevel.ante}</span>
-                ) : null}
-              </p>
-            )}
-
-            {nextLevel && (
-              <p className="mt-[clamp(0.25rem,0.9vh,1rem)] text-[clamp(0.8rem,1.5vh,1.5rem)] text-neutral-500">
-                {t("clock_next_level")}:{" "}
-                {nextLevel.isBreak
-                  ? nextLevel.breakLabel
-                  : `${nextLevel.smallBlind} / ${nextLevel.bigBlind}${
-                      nextLevel.ante ? ` · ${t("clock_ante")} ${nextLevel.ante}` : ""
-                    }`}
-              </p>
-            )}
-
             <div className="mt-[clamp(0.4rem,1.8vh,2rem)] w-full max-w-3xl">
               <TournamentTimeline
                 levels={data.levels}
@@ -247,25 +231,72 @@ export default function DisplayPage() {
                   : t("clock_next_break_in", { n: Math.max(1, Math.ceil(secondsToBreak / 60)) })}
               </p>
             </div>
+
+            {(showCurrentBlindsBox || showNextBlindsBox) && (
+              <div
+                className={`mt-[clamp(0.4rem,1.8vh,2rem)] w-full max-w-3xl border-t border-white/10 pt-[clamp(0.4rem,1.6vh,1.5rem)] ${
+                  showCurrentBlindsBox && showNextBlindsBox
+                    ? "grid grid-cols-2 divide-x divide-white/10"
+                    : "flex justify-center"
+                }`}
+              >
+                {showCurrentBlindsBox && (
+                  <div className="px-4 text-center">
+                    <p className="text-[clamp(0.7rem,1.4vh,0.9rem)] font-semibold uppercase tracking-widest text-neutral-500">
+                      {t("clock_blinds")}
+                    </p>
+                    <p className="mt-[clamp(0.1rem,0.5vh,0.4rem)] text-[clamp(1.5rem,4vh,3.5rem)] font-extrabold text-accent-600">
+                      {currentLevel.smallBlind} / {currentLevel.bigBlind}
+                    </p>
+                    <p className="mt-[clamp(0.1rem,0.4vh,0.3rem)] text-[clamp(0.7rem,1.4vh,1rem)] text-neutral-500">
+                      {t("clock_ante")}: {currentLevel.ante || "–"}
+                    </p>
+                  </div>
+                )}
+                {showNextBlindsBox && nextLevel && (
+                  <div className="px-4 text-center">
+                    <p className="text-[clamp(0.7rem,1.4vh,0.9rem)] font-semibold uppercase tracking-widest text-neutral-500">
+                      {t("display_next_blinds_label")}
+                    </p>
+                    {nextLevel.isBreak ? (
+                      <p className="mt-[clamp(0.1rem,0.5vh,0.4rem)] text-[clamp(1.1rem,2.8vh,2.25rem)] font-bold text-amber-400">
+                        {nextLevel.breakLabel || t("display_break")}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="mt-[clamp(0.1rem,0.5vh,0.4rem)] text-[clamp(1.5rem,4vh,3.5rem)] font-extrabold text-white">
+                          {nextLevel.smallBlind} / {nextLevel.bigBlind}
+                        </p>
+                        <p className="mt-[clamp(0.1rem,0.4vh,0.3rem)] text-[clamp(0.7rem,1.4vh,1rem)] text-neutral-500">
+                          {t("clock_ante")}: {nextLevel.ante || "–"}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
-        <div className="mt-[clamp(0.5rem,2.2vh,2.5rem)] grid grid-cols-3 gap-6 text-center">
-          <div>
-            <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-white">{data.stats.activeCount}</p>
-            <p className="text-sm text-neutral-500">{t("clock_players_left")}</p>
+        {screenLayout === "all_data" && (
+          <div className="mt-[clamp(0.5rem,2.2vh,2.5rem)] grid grid-cols-3 gap-6 text-center">
+            <div>
+              <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-white">{data.stats.activeCount}</p>
+              <p className="text-sm text-neutral-500">{t("clock_players_left")}</p>
+            </div>
+            <div>
+              <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-white">{data.stats.entriesCount}</p>
+              <p className="text-sm text-neutral-500">{t("display_entries")}</p>
+            </div>
+            <div>
+              <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-accent-600">
+                {formatCurrency(data.prizePool, data.currency, "es-MX")}
+              </p>
+              <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-white">{data.stats.entriesCount}</p>
-            <p className="text-sm text-neutral-500">{t("display_entries")}</p>
-          </div>
-          <div>
-            <p className="text-[clamp(1.1rem,2.4vh,2.25rem)] font-bold text-accent-600">
-              {formatCurrency(data.prizePool, data.currency, "es-MX")}
-            </p>
-            <p className="text-sm text-neutral-500">{t("display_prize_pool")}</p>
-          </div>
-        </div>
+        )}
 
         <p className="mt-[clamp(0.5rem,2vh,2.5rem)] text-sm text-neutral-600 text-center">{t("display_scan_hint")}</p>
       </div>

@@ -8,6 +8,7 @@ import { formatClock, formatCurrency, isBubblePhase, secondsUntilNextBreak } fro
 import { saveLocalTournament } from "@/lib/local-tournaments";
 import { TournamentTimeline } from "@/components/tournament-timeline";
 import { THEME_COLOR_IDS, THEME_COLORS, themeVars, type ThemeColorId } from "@/lib/theme";
+import { SCREEN_LAYOUT_IDS, DEFAULT_SCREEN_LAYOUT, type ScreenLayoutId } from "@/lib/screen-layout";
 import { LogoUploadField } from "@/components/logo-upload-field";
 import { BubbleBanner } from "@/components/bubble-banner";
 
@@ -805,6 +806,33 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
   );
 }
 
+/** Tiny mock of the public display used inside each layout option card. */
+function ScreenLayoutPreview({ layoutId }: { layoutId: ScreenLayoutId }) {
+  return (
+    <div className="w-full rounded-lg bg-black p-2">
+      <div className="text-center font-mono text-lg font-bold leading-none text-white">88:88</div>
+      {layoutId === "simple" && (
+        <div className="mt-1.5 rounded border border-neutral-800 py-1 text-center text-[10px] text-neutral-400">
+          100/200
+        </div>
+      )}
+      {(layoutId === "now_next" || layoutId === "all_data") && (
+        <div className="mt-1.5 grid grid-cols-2 gap-1">
+          <div className="rounded border border-neutral-800 py-1 text-center text-[10px] text-neutral-400">100/200</div>
+          <div className="rounded border border-neutral-800 py-1 text-center text-[10px] text-neutral-600">200/400</div>
+        </div>
+      )}
+      {layoutId === "all_data" && (
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
+          <div className="rounded border border-neutral-800 py-1 text-center text-[9px] text-neutral-500">12</div>
+          <div className="rounded border border-neutral-800 py-1 text-center text-[9px] text-neutral-500">12</div>
+          <div className="rounded border border-neutral-800 py-1 text-center text-[9px] text-neutral-500">$$$</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsTab({ data, id, adminToken, setData }: any) {
   const { t } = useI18n();
   const [form, setForm] = useState({
@@ -819,6 +847,7 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     addOnPrice: data.addOnPrice ?? 0,
     addOnStack: data.addOnStack ?? data.startingStack,
     themeColor: (data.themeColor ?? "emerald") as ThemeColorId,
+    screenLayout: (data.screenLayout ?? DEFAULT_SCREEN_LAYOUT) as ScreenLayoutId,
     logoUrl: (data.tournamentLogoUrl ?? null) as string | null,
   });
   const [saved, setSaved] = useState(false);
@@ -930,6 +959,37 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
               style={{ backgroundColor: THEME_COLORS[colorId].swatch }}
             />
           ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-neutral-800 p-4">
+        <label className={labelClass}>{t("settings_screen_layout_title")}</label>
+        <p className="mb-3 text-xs text-neutral-500">{t("settings_screen_layout_hint")}</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {SCREEN_LAYOUT_IDS.map((layoutId) => {
+            const selected = form.screenLayout === layoutId;
+            return (
+              <button
+                key={layoutId}
+                type="button"
+                onClick={() => setForm({ ...form, screenLayout: layoutId })}
+                className={`flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-colors ${
+                  selected ? "border-accent-500 bg-accent-500/10" : "border-neutral-800 hover:border-neutral-600"
+                }`}
+              >
+                <div className="flex w-full items-center gap-2">
+                  <span
+                    className={`h-4 w-4 shrink-0 rounded-full border-2 ${
+                      selected ? "border-accent-500 bg-accent-500" : "border-neutral-600"
+                    }`}
+                  />
+                  <span className="text-sm font-semibold text-white">{t(`settings_screen_layout_${layoutId}`)}</span>
+                </div>
+                <ScreenLayoutPreview layoutId={layoutId} />
+                <p className="text-xs text-neutral-500">{t(`settings_screen_layout_${layoutId}_desc`)}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
