@@ -127,6 +127,9 @@ const dictionaries = {
 
     prizes_title: "Distribución de premios",
     prizes_pool: "Bolsa total acumulada",
+    prizes_gross_pool: "Bolsa bruta (antes de retención)",
+    prizes_fee_retained: "Retenido por administración",
+    prizes_fee_applies_rebuy_addon_short: "incluye recompras y add-ons",
     prizes_place: "Lugar",
     prizes_percentage: "Porcentaje",
     prizes_amount: "Monto",
@@ -141,6 +144,18 @@ const dictionaries = {
     settings_save: "Guardar cambios",
     settings_saved: "Cambios guardados",
     settings_locked_hint: "Algunos valores no se pueden cambiar una vez que el torneo inició.",
+
+    settings_fee_title: "Retención por administración",
+    settings_fee_enable: "Retener un costo de administración, gestión y logística",
+    settings_fee_hint: "Se descuenta del buy-in (y, si lo marcas, de recompras y add-ons) antes de calcular la bolsa de premios.",
+    settings_fee_mode_percentage: "Porcentaje",
+    settings_fee_mode_fixed: "Monto fijo",
+    settings_fee_value_percentage: "Porcentaje a retener",
+    settings_fee_value_fixed: "Monto fijo a retener",
+    settings_fee_value_fixed_hint: "No puede superar el costo de entrada (buy-in).",
+    settings_fee_applies_rebuy_addon: "Aplicar también a recompras y add-ons",
+    settings_fee_locked_hint: "El torneo ya inició: la retención por administración no se puede modificar.",
+
     settings_theme_color: "Color de la interfaz",
     settings_theme_color_hint: "Se aplica al reloj, al panel de administrador y a la pantalla de cada jugador.",
 
@@ -331,6 +346,9 @@ const dictionaries = {
 
     prizes_title: "Prize distribution",
     prizes_pool: "Total accumulated pool",
+    prizes_gross_pool: "Gross pool (before retention)",
+    prizes_fee_retained: "Retained for administration",
+    prizes_fee_applies_rebuy_addon_short: "includes rebuys and add-ons",
     prizes_place: "Place",
     prizes_percentage: "Percentage",
     prizes_amount: "Amount",
@@ -345,6 +363,18 @@ const dictionaries = {
     settings_save: "Save changes",
     settings_saved: "Changes saved",
     settings_locked_hint: "Some values can't be changed once the tournament has started.",
+
+    settings_fee_title: "Administration retention",
+    settings_fee_enable: "Retain an administration, management, and logistics fee",
+    settings_fee_hint: "Deducted from the buy-in (and, if checked, from rebuys and add-ons) before the prize pool is calculated.",
+    settings_fee_mode_percentage: "Percentage",
+    settings_fee_mode_fixed: "Fixed amount",
+    settings_fee_value_percentage: "Percentage to retain",
+    settings_fee_value_fixed: "Fixed amount to retain",
+    settings_fee_value_fixed_hint: "Can't exceed the buy-in cost.",
+    settings_fee_applies_rebuy_addon: "Also apply to rebuys and add-ons",
+    settings_fee_locked_hint: "The tournament has already started: the administration retention can't be changed.",
+
     settings_theme_color: "Interface color",
     settings_theme_color_hint: "Applied to the clock, the admin panel, and every player's screen.",
 

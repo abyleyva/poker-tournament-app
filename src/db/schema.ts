@@ -26,6 +26,15 @@ export const tournaments = pgTable("tournaments", {
   addOnPrice: doublePrecision("addon_price"),
   addOnStack: integer("addon_stack"),
 
+  // Cuánto retiene el organizador de cada buy-in (y, si feeAppliesToRebuyAddOn,
+  // de cada recompra/add-on) como cuota de administración/gestión/logística,
+  // antes de calcular la bolsa de premios. "none" por defecto — sin cambios
+  // de comportamiento para torneos ya existentes. Ver src/lib/organizer-fee.ts.
+  // Bloqueado (server-side) una vez que el torneo deja de estar en "draft".
+  feeMode: text("fee_mode").notNull().default("none"), // "none" | "percentage" | "fixed"
+  feeValue: doublePrecision("fee_value").notNull().default(0),
+  feeAppliesToRebuyAddOn: boolean("fee_applies_to_rebuy_addon").notNull().default(false),
+
   status: text("status").notNull().default("draft"), // draft | running | paused | finished
   currentLevelIndex: integer("current_level_index").notNull().default(0),
   levelEndsAt: timestamp("level_ends_at", { withTimezone: true }),

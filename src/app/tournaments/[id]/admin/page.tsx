@@ -449,11 +449,39 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
 
 function PrizesTab({ data }: any) {
   const { t } = useI18n();
+  const fee = data.organizerFee;
+  const hasFee = fee && fee.mode !== "none" && fee.totalRetained > 0;
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
-        <p className="text-sm text-neutral-400">{t("prizes_pool")}</p>
-        <p className="text-3xl font-bold text-white">{formatCurrency(data.prizePool, data.currency, "es-MX")}</p>
+        {hasFee ? (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm text-neutral-400">{t("prizes_gross_pool")}</p>
+              <p className="text-lg font-medium text-neutral-300">
+                {formatCurrency(fee.grossPool, data.currency, "es-MX")}
+              </p>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm text-neutral-400">
+                {t("prizes_fee_retained")}
+                {fee.appliesToRebuyAddOn ? ` (${t("prizes_fee_applies_rebuy_addon_short")})` : ""}
+              </p>
+              <p className="text-lg font-medium text-amber-400">
+                -{formatCurrency(fee.totalRetained, data.currency, "es-MX")}
+              </p>
+            </div>
+            <div className="flex items-baseline justify-between border-t border-neutral-800 pt-2">
+              <p className="text-sm text-neutral-400">{t("prizes_pool")}</p>
+              <p className="text-3xl font-bold text-white">{formatCurrency(data.prizePool, data.currency, "es-MX")}</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-neutral-400">{t("prizes_pool")}</p>
+            <p className="text-3xl font-bold text-white">{formatCurrency(data.prizePool, data.currency, "es-MX")}</p>
+          </>
+        )}
       </div>
 
       {data.payouts.length === 0 ? (
@@ -846,6 +874,10 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     allowAddOn: data.allowAddOn,
     addOnPrice: data.addOnPrice ?? 0,
     addOnStack: data.addOnStack ?? data.startingStack,
+    feeEnabled: (data.organizerFee?.mode ?? "none") !== "none",
+    feeMode: (data.organizerFee?.mode && data.organizerFee.mode !== "none" ? data.organizerFee.mode : "percentage") as "percentage" | "fixed",
+    feeValue: data.organizerFee?.value ?? 0,
+    feeAppliesToRebuyAddOn: data.organizerFee?.appliesToRebuyAddOn ?? false,
     themeColor: (data.themeColor ?? "emerald") as ThemeColorId,
     screenLayout: (data.screenLayout ?? DEFAULT_SCREEN_LAYOUT) as ScreenLayoutId,
     logoUrl: (data.tournamentLogoUrl ?? null) as string | null,
@@ -856,10 +888,17 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     try {
+      const { feeEnabled, feeMode, feeValue, feeAppliesToRebuyAddOn, ...rest } = form;
+      const payload = {
+        ...rest,
+        feeMode: feeEnabled ? feeMode : "none",
+        feeValue: feeEnabled ? feeValue : 0,
+        feeAppliesToRebuyAddOn: feeEnabled ? feeAppliesToRebuyAddOn : false,
+      };
       const tournamentRes = await fetch(`/api/tournaments/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminToken, ...form }),
+        body: JSON.stringify({ adminToken, ...payload }),
       });
       const tournamentJson = await tournamentRes.json();
       if (!tournamentRes.ok) throw new Error(tournamentJson.error);
@@ -938,6 +977,76 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
               <label className={labelClass}>{t("wizard_addOnStack")}</label>
               <input type="number" className={inputClass} value={form.addOnStack} onChange={(e) => setForm({ ...form, addOnStack: Number(e.target.value) })} />
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-neutral-800 p-4">
+        <label className="flex items-center gap-2 text-white text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={form.feeEnabled}
+            onChange={(e) => setForm({ ...form, feeEnabled: e.target.checked })}
+            disabled={locked}
+          />
+          {t("settings_fee_enable")}
+        </label>
+        <p className="mt-1 text-xs text-neutral-500">{t("settings_fee_hint")}</p>
+        {locked && <p className="mt-1 text-xs text-amber-400">{t("settings_fee_locked_hint")}</p>}
+        {form.feeEnabled && (
+          <div className="mt-3 space-y-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => setForm({ ...form, feeMode: "percentage" })}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
+                  form.feeMode === "percentage"
+                    ? "border-accent-500 bg-accent-500/10 text-white"
+                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                }`}
+              >
+                {t("settings_fee_mode_percentage")}
+              </button>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => setForm({ ...form, feeMode: "fixed" })}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
+                  form.feeMode === "fixed"
+                    ? "border-accent-500 bg-accent-500/10 text-white"
+                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                }`}
+              >
+                {t("settings_fee_mode_fixed")}
+              </button>
+            </div>
+            <div>
+              <label className={labelClass}>
+                {form.feeMode === "percentage" ? t("settings_fee_value_percentage") : t("settings_fee_value_fixed")}
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={form.feeMode === "percentage" ? 100 : undefined}
+                className={inputClass}
+                value={form.feeValue}
+                onChange={(e) => setForm({ ...form, feeValue: Number(e.target.value) })}
+                disabled={locked}
+              />
+              {form.feeMode === "fixed" && (
+                <p className="mt-1 text-xs text-neutral-500">{t("settings_fee_value_fixed_hint")}</p>
+              )}
+            </div>
+            <label className="flex items-center gap-2 text-sm text-neutral-300">
+              <input
+                type="checkbox"
+                checked={form.feeAppliesToRebuyAddOn}
+                onChange={(e) => setForm({ ...form, feeAppliesToRebuyAddOn: e.target.checked })}
+                disabled={locked}
+              />
+              {t("settings_fee_applies_rebuy_addon")}
+            </label>
           </div>
         )}
       </div>

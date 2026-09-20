@@ -5,6 +5,7 @@ import { generateToken } from "./tokens";
 import { computeAdvancedClock } from "./tournament-logic";
 import { DEFAULT_THEME_COLOR, isThemeColorId } from "./theme";
 import { DEFAULT_SCREEN_LAYOUT, isScreenLayoutId } from "./screen-layout";
+import { DEFAULT_FEE_MODE, isFeeMode, type FeeMode } from "./organizer-fee";
 
 // Logos are stored inline as data URLs (no external file storage configured
 // for this project), so we cap how large one can be to keep DB rows small.
@@ -18,6 +19,56 @@ function assertValidLogoUrl(logoUrl: string | null | undefined) {
   }
   if (logoUrl.length > MAX_LOGO_DATA_URL_LENGTH) {
     throw new ValidationError("La imagen del logo es demasiado grande. Usa una versión más pequeña o comprimida.");
+  }
+}
+
+/**
+ * Normalizes the organizer's administration/management/logistics fee before
+ * it's stored: an invalid mode falls back to "none", a percentage is clamped
+ * to [0, 100], and a fixed amount is clamped to [0, buyIn] so it can never
+ * exceed (and therefore never zero out or make negative) the buy-in it's
+ * retained from.
+ */
+function normalizeFee(
+  feeMode: string | null | undefined,
+  feeValue: number | null | undefined,
+  buyIn: number
+): { feeMode: FeeMode; feeValue: number } {
+  const mode = isFeeMode(feeMode) ? feeMode : DEFAULT_FEE_MODE;
+  const rawValue = feeValue ?? 0;
+
+  if (mode === "percentage") {
+    return { feeMode: mode, feeValue: Math.min(Math.max(rawValue, 0), 100) };
+  }
+  if (mode === "fixed") {
+    return { feeMode: mode, feeValue: Math.min(Math.max(rawValue, 0), Math.max(0, buyIn)) };
+  }
+  return { feeMode: "none", feeValue: 0 };
+}
+
+/**
+ * Once a tournament has left "draft", its retention/fee configuration is
+ * locked server-side — not just disabled in the UI — because it directly
+ * affects how much money players have already paid into the prize pool.
+ * Allowing it to change mid-tournament (or after) would be unfair to
+ * whoever already paid a buy-in/rebuy/add-on under the previous terms.
+ */
+function assertFeeLockedIfStarted(
+  tournament: { status: string; feeMode: string; feeValue: number; feeAppliesToRebuyAddOn: boolean },
+  patch: { feeMode?: FeeMode; feeValue?: number; feeAppliesToRebuyAddOn?: boolean }
+) {
+  if (tournament.status === "draft") return;
+
+  const changesMode = patch.feeMode !== undefined && patch.feeMode !== tournament.feeMode;
+  const changesValue = patch.feeValue !== undefined && patch.feeValue !== tournament.feeValue;
+  const changesRebuyAddOn =
+    patch.feeAppliesToRebuyAddOn !== undefined &&
+    patch.feeAppliesToRebuyAddOn !== tournament.feeAppliesToRebuyAddOn;
+
+  if (changesMode || changesValue || changesRebuyAddOn) {
+    throw new ValidationError(
+      "El torneo ya inició: la retención por administración no se puede modificar."
+    );
   }
 }
 
@@ -46,6 +97,9 @@ export type CreateTournamentInput = {
   allowAddOn: boolean;
   addOnPrice?: number | null;
   addOnStack?: number | null;
+  feeMode?: string | null;
+  feeValue?: number | null;
+  feeAppliesToRebuyAddOn?: boolean;
   themeColor?: string | null;
   screenLayout?: string | null;
   logoUrl?: string | null;
@@ -64,6 +118,7 @@ export async function createTournament(input: CreateTournamentInput) {
   assertValidLogoUrl(input.logoUrl);
 
   const adminToken = generateToken();
+  const normalizedFee = normalizeFee(input.feeMode, input.feeValue, input.buyIn);
 
   const [tournament] = await db
     .insert(tournaments)
@@ -81,6 +136,9 @@ export async function createTournament(input: CreateTournamentInput) {
       addOnPrice: input.allowAddOn ? input.addOnPrice ?? 0 : null,
       logoUrl: input.logoUrl || null,
       addOnStack: input.allowAddOn ? input.addOnStack ?? input.startingStack : null,
+      feeMode: normalizedFee.feeMode,
+      feeValue: normalizedFee.feeValue,
+      feeAppliesToRebuyAddOn: !!input.feeAppliesToRebuyAddOn,
       themeColor: isThemeColorId(input.themeColor) ? input.themeColor : DEFAULT_THEME_COLOR,
       screenLayout: isScreenLayoutId(input.screenLayout) ? input.screenLayout : DEFAULT_SCREEN_LAYOUT,
       status: "draft",
@@ -261,6 +319,28 @@ export async function updateTournamentSettings(
   const { tournament, levels: existingLevels } = await fetchFull(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
 
+  const feeFieldsProvided =
+    patch.feeMode !== undefined || patch.feeValue !== undefined || patch.feeAppliesToRebuyAddOn !== undefined;
+
+  let normalizedFee: { feeMode: FeeMode; feeValue: number } | undefined;
+  if (feeFieldsProvided) {
+    const effectiveBuyIn = patch.buyIn !== undefined ? patch.buyIn : tournament.buyIn;
+    normalizedFee = normalizeFee(
+      patch.feeMode !== undefined ? patch.feeMode : tournament.feeMode,
+      patch.feeValue !== undefined ? patch.feeValue : tournament.feeValue,
+      effectiveBuyIn
+    );
+
+    assertFeeLockedIfStarted(tournament, {
+      feeMode: normalizedFee.feeMode,
+      feeValue: normalizedFee.feeValue,
+      feeAppliesToRebuyAddOn:
+        patch.feeAppliesToRebuyAddOn !== undefined
+          ? patch.feeAppliesToRebuyAddOn
+          : tournament.feeAppliesToRebuyAddOn,
+    });
+  }
+
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (patch.name !== undefined) updates.name = patch.name.trim();
   if (patch.language !== undefined) updates.language = patch.language;
@@ -274,6 +354,13 @@ export async function updateTournamentSettings(
   if (patch.allowAddOn !== undefined) updates.allowAddOn = patch.allowAddOn;
   if (patch.addOnPrice !== undefined) updates.addOnPrice = patch.addOnPrice;
   if (patch.addOnStack !== undefined) updates.addOnStack = patch.addOnStack;
+  if (normalizedFee) {
+    updates.feeMode = normalizedFee.feeMode;
+    updates.feeValue = normalizedFee.feeValue;
+  }
+  if (patch.feeAppliesToRebuyAddOn !== undefined) {
+    updates.feeAppliesToRebuyAddOn = patch.feeAppliesToRebuyAddOn;
+  }
   if (patch.themeColor !== undefined && isThemeColorId(patch.themeColor)) {
     updates.themeColor = patch.themeColor;
   }

@@ -92,10 +92,47 @@ export type PrizePayout = {
   amount: number;
 };
 
+import type { FeeMode } from "./organizer-fee";
+
 /**
- * Total prize pool = (active + eliminated players) * buyIn
+ * How much of a single payment (buy-in, rebuy, or add-on) the organizer
+ * retains as an administration/management/logistics fee. Always clamped to
+ * [0, paymentAmount] — a fixed fee can never exceed (and therefore never
+ * make negative) the contribution it applies to.
+ */
+export function computeFeePerEntry(
+  paymentAmount: number,
+  feeMode: FeeMode | null | undefined,
+  feeValue: number | null | undefined
+): number {
+  if (!paymentAmount || paymentAmount <= 0) return 0;
+  const value = feeValue ?? 0;
+  if (feeMode === "percentage") {
+    const pct = Math.min(Math.max(value, 0), 100);
+    return Math.min((paymentAmount * pct) / 100, paymentAmount);
+  }
+  if (feeMode === "fixed") {
+    return Math.min(Math.max(value, 0), paymentAmount);
+  }
+  return 0;
+}
+
+export type PrizePoolBreakdown = {
+  grossPool: number;
+  feeTotal: number;
+  netPool: number;
+};
+
+/**
+ * Gross prize pool = (active + eliminated players) * buyIn
  *                   + total rebuys * rebuyPrice
  *                   + total add-ons * addOnPrice
+ *
+ * The organizer's administration/management/logistics fee (see
+ * src/lib/organizer-fee.ts) is retained from each buy-in and, if
+ * feeAppliesToRebuyAddOn is set, from each rebuy/add-on as well. The net
+ * pool (gross minus retained fees) is what actually gets distributed to
+ * payouts.
  */
 export function computePrizePool(params: {
   entriesCount: number;
@@ -104,12 +141,36 @@ export function computePrizePool(params: {
   rebuyPrice: number | null | undefined;
   totalAddOns: number;
   addOnPrice: number | null | undefined;
-}): number {
-  const { entriesCount, buyIn, totalRebuys, rebuyPrice, totalAddOns, addOnPrice } = params;
+  feeMode?: FeeMode | null;
+  feeValue?: number | null;
+  feeAppliesToRebuyAddOn?: boolean | null;
+}): PrizePoolBreakdown {
+  const {
+    entriesCount,
+    buyIn,
+    totalRebuys,
+    rebuyPrice,
+    totalAddOns,
+    addOnPrice,
+    feeMode,
+    feeValue,
+    feeAppliesToRebuyAddOn,
+  } = params;
   const base = entriesCount * buyIn;
   const rebuys = totalRebuys * (rebuyPrice ?? 0);
   const addOns = totalAddOns * (addOnPrice ?? 0);
-  return base + rebuys + addOns;
+  const grossPool = base + rebuys + addOns;
+
+  const feePerBuyIn = computeFeePerEntry(buyIn, feeMode, feeValue);
+  let feeTotal = entriesCount * feePerBuyIn;
+  if (feeAppliesToRebuyAddOn) {
+    const feePerRebuy = computeFeePerEntry(rebuyPrice ?? 0, feeMode, feeValue);
+    const feePerAddOn = computeFeePerEntry(addOnPrice ?? 0, feeMode, feeValue);
+    feeTotal += totalRebuys * feePerRebuy + totalAddOns * feePerAddOn;
+  }
+
+  const netPool = Math.max(0, grossPool - feeTotal);
+  return { grossPool, feeTotal, netPool };
 }
 
 export function computePrizePayouts(pool: number, prizes: PrizeInput[]): PrizePayout[] {

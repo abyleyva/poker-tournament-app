@@ -4,6 +4,7 @@ import {
   computePrizePool,
   secondsRemaining,
 } from "./tournament-logic";
+import type { FeeMode } from "./organizer-fee";
 
 type Tournament = typeof tournaments.$inferSelect;
 type Level = typeof blindLevels.$inferSelect;
@@ -26,17 +27,20 @@ export function serializeTournament(params: {
   const totalRebuys = playerRows.reduce((sum, p) => sum + (p.rebuysCount ?? 0), 0);
   const totalAddOns = playerRows.reduce((sum, p) => sum + (p.addOnsCount ?? 0), 0);
 
-  const pool = computePrizePool({
+  const { grossPool, feeTotal, netPool } = computePrizePool({
     entriesCount,
     buyIn: tournament.buyIn,
     totalRebuys,
     rebuyPrice: tournament.rebuyPrice,
     totalAddOns,
     addOnPrice: tournament.addOnPrice,
+    feeMode: tournament.feeMode as FeeMode,
+    feeValue: tournament.feeValue,
+    feeAppliesToRebuyAddOn: tournament.feeAppliesToRebuyAddOn,
   });
 
   const payouts = computePrizePayouts(
-    pool,
+    netPool,
     prizeRows.map((p) => ({ position: p.position, percentage: p.percentage }))
   );
 
@@ -92,9 +96,20 @@ export function serializeTournament(params: {
       durationMinutes: l.durationMinutes,
       breakLabel: l.breakLabel,
     })),
-    prizePool: Math.round(pool * 100) / 100,
+    prizePool: Math.round(netPool * 100) / 100,
     payouts,
     stats: { entriesCount, activeCount, averageStack, totalRebuys, totalAddOns },
+    ...(isAdmin
+      ? {
+          organizerFee: {
+            mode: tournament.feeMode as FeeMode,
+            value: tournament.feeValue,
+            appliesToRebuyAddOn: tournament.feeAppliesToRebuyAddOn,
+            grossPool: Math.round(grossPool * 100) / 100,
+            totalRetained: Math.round(feeTotal * 100) / 100,
+          },
+        }
+      : {}),
     players: playerRows
       .slice()
       .sort((a, b) => {
