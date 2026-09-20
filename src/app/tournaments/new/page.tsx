@@ -66,6 +66,11 @@ export default function NewTournamentPage() {
   const [addOnPrice, setAddOnPrice] = useState<number | "">(500);
   const [addOnStack, setAddOnStack] = useState<number | "">(15000);
 
+  const [feeEnabled, setFeeEnabled] = useState(false);
+  const [feeMode, setFeeMode] = useState<"percentage" | "fixed">("percentage");
+  const [feeValue, setFeeValue] = useState<number | "">(0);
+  const [feeAppliesToRebuyAddOn, setFeeAppliesToRebuyAddOn] = useState(false);
+
   const [levels, setLevels] = useState<LevelRow[]>(defaultLevels());
   const [linkDurations, setLinkDurations] = useState(false);
   const [prizes, setPrizes] = useState<PrizeRow[]>([
@@ -171,6 +176,9 @@ export default function NewTournamentPage() {
         allowAddOn,
         addOnPrice: allowAddOn ? Number(addOnPrice) || 0 : null,
         addOnStack: allowAddOn ? Number(addOnStack) || 0 : null,
+        feeMode: feeEnabled ? feeMode : "none",
+        feeValue: feeEnabled ? Number(feeValue) || 0 : 0,
+        feeAppliesToRebuyAddOn: feeEnabled ? feeAppliesToRebuyAddOn : false,
         levels: levels.map((l, idx) => ({
           order: idx,
           isBreak: l.isBreak,
@@ -348,6 +356,66 @@ export default function NewTournamentPage() {
                     onChange={(e) => setAddOnStack(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-neutral-800 p-4">
+            <label className="flex items-center gap-2 text-white font-medium">
+              <input type="checkbox" checked={feeEnabled} onChange={(e) => setFeeEnabled(e.target.checked)} />
+              {t("settings_fee_enable")}
+            </label>
+            <p className="mt-1 text-xs text-neutral-500">{t("settings_fee_hint")}</p>
+            {feeEnabled && (
+              <div className="mt-3 space-y-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFeeMode("percentage")}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      feeMode === "percentage"
+                        ? "border-emerald-500 bg-emerald-500/10 text-white"
+                        : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                    }`}
+                  >
+                    {t("settings_fee_mode_percentage")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeeMode("fixed")}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      feeMode === "fixed"
+                        ? "border-emerald-500 bg-emerald-500/10 text-white"
+                        : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                    }`}
+                  >
+                    {t("settings_fee_mode_fixed")}
+                  </button>
+                </div>
+                <div>
+                  <label className={labelClass}>
+                    {feeMode === "percentage" ? t("settings_fee_value_percentage") : t("settings_fee_value_fixed")}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={feeMode === "percentage" ? 100 : undefined}
+                    className={inputClass}
+                    value={feeValue}
+                    onChange={(e) => setFeeValue(e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                  {feeMode === "fixed" && (
+                    <p className="mt-1 text-xs text-neutral-500">{t("settings_fee_value_fixed_hint")}</p>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 text-sm text-neutral-300">
+                  <input
+                    type="checkbox"
+                    checked={feeAppliesToRebuyAddOn}
+                    onChange={(e) => setFeeAppliesToRebuyAddOn(e.target.checked)}
+                  />
+                  {t("settings_fee_applies_rebuy_addon")}
+                </label>
               </div>
             )}
           </div>
