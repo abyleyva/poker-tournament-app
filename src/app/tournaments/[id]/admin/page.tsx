@@ -1100,8 +1100,8 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
             <button
               key={colorId}
               type="button"
-              title={THEME_COLORS[colorId].label}
-              aria-label={THEME_COLORS[colorId].label}
+              title={t(THEME_COLORS[colorId].labelKey)}
+              aria-label={t(THEME_COLORS[colorId].labelKey)}
               onClick={() => setForm({ ...form, themeColor: colorId })}
               className={`h-9 w-9 rounded-full ring-offset-2 ring-offset-neutral-900 transition-all ${
                 form.themeColor === colorId ? "ring-2 ring-white scale-110" : "ring-1 ring-white/10 hover:ring-white/40"

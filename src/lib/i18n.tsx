@@ -160,6 +160,16 @@ const dictionaries = {
     settings_theme_color: "Color de la interfaz",
     settings_theme_color_hint: "Se aplica al reloj, al panel de administrador y a la pantalla de cada jugador.",
 
+    theme_color_red: "Rojo",
+    theme_color_emerald: "Verde",
+    theme_color_blue: "Azul",
+    theme_color_violet: "Morado",
+    theme_color_rose: "Rosa",
+    theme_color_amber: "Ámbar",
+    theme_color_cyan: "Cian",
+    theme_color_pink: "Rosa fuerte",
+    theme_color_orange: "Naranja",
+
     settings_screen_layout_title: "Diseño de la pantalla",
     settings_screen_layout_hint: "Elige qué información se muestra en la pantalla pública del reloj.",
     settings_screen_layout_simple: "Simple",
@@ -428,6 +438,16 @@ const dictionaries = {
 
     settings_theme_color: "Interface color",
     settings_theme_color_hint: "Applied to the clock, the admin panel, and every player's screen.",
+
+    theme_color_red: "Red",
+    theme_color_emerald: "Green",
+    theme_color_blue: "Blue",
+    theme_color_violet: "Purple",
+    theme_color_rose: "Pink",
+    theme_color_amber: "Amber",
+    theme_color_cyan: "Cyan",
+    theme_color_pink: "Hot pink",
+    theme_color_orange: "Orange",
 
     settings_screen_layout_title: "Screen layout",
     settings_screen_layout_hint: "Choose what information shows on the public clock display.",

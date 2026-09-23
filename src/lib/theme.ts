@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { DictKey } from "./i18n";
 
 export type ThemeColorId =
   | "red"
@@ -12,7 +13,9 @@ export type ThemeColorId =
   | "orange";
 
 type ThemeColorDef = {
-  label: string;
+  /** i18n dictionary key for the display name — never a literal string, so
+   * the label follows the app's ES/EN language switch like everything else. */
+  labelKey: DictKey;
   /** Hex used to paint the little swatch button in the settings picker. */
   swatch: string;
   vars: {
@@ -28,7 +31,7 @@ export const DEFAULT_THEME_COLOR: ThemeColorId = "emerald";
 
 export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
   red: {
-    label: "Rojo",
+    labelKey: "theme_color_red",
     swatch: "#ef4444",
     vars: {
       "--accent-300": "#fca5a5",
@@ -39,7 +42,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   emerald: {
-    label: "Verde",
+    labelKey: "theme_color_emerald",
     swatch: "#10b981",
     vars: {
       "--accent-300": "#6ee7b7",
@@ -50,7 +53,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   blue: {
-    label: "Azul",
+    labelKey: "theme_color_blue",
     swatch: "#3b82f6",
     vars: {
       "--accent-300": "#93c5fd",
@@ -61,7 +64,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   violet: {
-    label: "Morado",
+    labelKey: "theme_color_violet",
     swatch: "#8b5cf6",
     vars: {
       "--accent-300": "#c4b5fd",
@@ -72,7 +75,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   rose: {
-    label: "Rosa",
+    labelKey: "theme_color_rose",
     swatch: "#f43f5e",
     vars: {
       "--accent-300": "#fda4af",
@@ -83,7 +86,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   amber: {
-    label: "Ámbar",
+    labelKey: "theme_color_amber",
     swatch: "#f59e0b",
     vars: {
       "--accent-300": "#fcd34d",
@@ -94,7 +97,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   cyan: {
-    label: "Cian",
+    labelKey: "theme_color_cyan",
     swatch: "#06b6d4",
     vars: {
       "--accent-300": "#67e8f9",
@@ -105,7 +108,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   pink: {
-    label: "Rosa fuerte",
+    labelKey: "theme_color_pink",
     swatch: "#ec4899",
     vars: {
       "--accent-300": "#f9a8d4",
@@ -116,7 +119,7 @@ export const THEME_COLORS: Record<ThemeColorId, ThemeColorDef> = {
     },
   },
   orange: {
-    label: "Naranja",
+    labelKey: "theme_color_orange",
     swatch: "#f97316",
     vars: {
       "--accent-300": "#fdba74",
