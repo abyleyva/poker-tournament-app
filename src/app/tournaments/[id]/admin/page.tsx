@@ -11,6 +11,9 @@ import { THEME_COLOR_IDS, THEME_COLORS, themeVars, type ThemeColorId } from "@/l
 import { SCREEN_LAYOUT_IDS, DEFAULT_SCREEN_LAYOUT, type ScreenLayoutId } from "@/lib/screen-layout";
 import { LogoUploadField } from "@/components/logo-upload-field";
 import { BubbleBanner } from "@/components/bubble-banner";
+import { ChipColorPicker } from "@/components/chip-color-picker";
+import { PokerChipIcon } from "@/components/poker-chip-icon";
+import { chipColorLabel } from "@/lib/chip-colors";
 
 export default function AdminPage() {
   return (
@@ -1398,11 +1401,10 @@ function ChipsSummaryTab({ data, id, adminToken, setData }: any) {
                         </div>
                         <div>
                           <label className={labelClass}>{t("chips_denom_color")}</label>
-                          <input
-                            className={inputClass}
-                            placeholder={t("chips_denom_color_placeholder")}
+                          <ChipColorPicker
                             value={row.color}
-                            onChange={(e) => updateRow(row.key, { color: e.target.value })}
+                            placeholder={t("chips_denom_color_placeholder")}
+                            onChange={(colorId) => updateRow(row.key, { color: colorId })}
                           />
                         </div>
                         <div>
@@ -1466,7 +1468,12 @@ function ChipsSummaryTab({ data, id, adminToken, setData }: any) {
               <tbody>
                 {grandTotal.map((row) => (
                   <tr key={`${row.value}|${row.color}`} className="border-t border-neutral-800">
-                    <td className="py-2 pr-4 text-neutral-200">{row.color}</td>
+                    <td className="py-2 pr-4 text-neutral-200">
+                      <span className="flex items-center gap-2">
+                        <PokerChipIcon colorId={row.color} size={22} />
+                        {chipColorLabel(row.color, t)}
+                      </span>
+                    </td>
                     <td className="py-2 pr-4 text-neutral-200">{row.value.toLocaleString()}</td>
                     <td className="py-2 pr-4 font-semibold text-white">{row.count.toLocaleString()}</td>
                   </tr>
