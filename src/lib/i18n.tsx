@@ -28,7 +28,7 @@ const dictionaries = {
     wizard_title: "Configura tu torneo",
     wizard_section_general: "Datos generales",
     wizard_name: "Nombre del torneo",
-    wizard_name_placeholder: "Ej. Torneo de Verano CMQ",
+    wizard_name_placeholder: "Ej. Torneo de Verano By AbyLeyva",
     wizard_currency: "Moneda",
     wizard_language: "Idioma de la aplicación",
 
@@ -287,7 +287,7 @@ const dictionaries = {
     wizard_title: "Set up your tournament",
     wizard_section_general: "General info",
     wizard_name: "Tournament name",
-    wizard_name_placeholder: "E.g. CMQ Summer Tournament",
+    wizard_name_placeholder: "E.g. By AbyLeyva Summer Tournament",
     wizard_currency: "Currency",
     wizard_language: "App language",
 
