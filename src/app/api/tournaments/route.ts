@@ -3,7 +3,7 @@ import { createTournament } from "@/lib/tournament-service";
 import { serializeTournament } from "@/lib/view";
 import { handleApiError } from "@/lib/api-helpers";
 import { db } from "@/db";
-import { blindLevels, players, prizes } from "@/db/schema";
+import { blindLevels, chipDenominations, players, prizes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -11,9 +11,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const tournament = await createTournament(body);
 
-    const [levels, prizeRows] = await Promise.all([
+    const [levels, prizeRows, chipDenominationRows] = await Promise.all([
       db.query.blindLevels.findMany({ where: eq(blindLevels.tournamentId, tournament.id) }),
       db.query.prizes.findMany({ where: eq(prizes.tournamentId, tournament.id) }),
+      db.query.chipDenominations.findMany({ where: eq(chipDenominations.tournamentId, tournament.id) }),
     ]);
 
     const origin = req.nextUrl.origin;
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
         levels,
         players: [],
         prizes: prizeRows,
+        chipDenominations: chipDenominationRows,
         isAdmin: true,
         origin,
       }),

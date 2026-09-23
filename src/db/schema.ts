@@ -26,6 +26,27 @@ export const tournaments = pgTable("tournaments", {
   addOnPrice: doublePrecision("addon_price"),
   addOnStack: integer("addon_stack"),
 
+  // "Dealer add-on": propina opcional para los dealers, ofrecida antes de
+  // iniciar el torneo. A diferencia del rebuy/add-on normal, esto NO se
+  // registra por jugador ni se descuenta de la bolsa de premios — es dinero
+  // que se queda directamente con los dealers como agradecimiento por su
+  // servicio, nunca del organizador ni de los jugadores que compiten por el
+  // premio. Solo se usa para la pestaña "Chips Summary" (planeación de
+  // cuántas fichas físicas llevar), ver src/lib/tournament-logic.ts.
+  allowDealerAddOn: boolean("allow_dealer_addon").notNull().default(false),
+  dealerAddOnPrice: doublePrecision("dealer_addon_price"),
+  dealerAddOnStack: integer("dealer_addon_stack"),
+
+  // Campos manuales de planeación para la pestaña "Chips Summary": cuántos
+  // jugadores/recompras/add-ons/dealer add-ons se esperan en total, usados
+  // solo para calcular cuántas fichas físicas de cada denominación hay que
+  // llevar al torneo. Independientes de los jugadores reales ya registrados
+  // (el torneo puede seguir en "draft" sin nadie inscrito todavía).
+  expectedPlayers: integer("expected_players"),
+  expectedRebuys: integer("expected_rebuys"),
+  expectedAddOns: integer("expected_add_ons"),
+  expectedDealerAddOns: integer("expected_dealer_add_ons"),
+
   // Cuánto retiene el organizador de cada buy-in (y, si feeAppliesToRebuyAddOn,
   // de cada recompra/add-on) como cuota de administración/gestión/logística,
   // antes de calcular la bolsa de premios. "none" por defecto — sin cambios
@@ -111,10 +132,29 @@ export const prizes = pgTable("prizes", {
   percentage: doublePrecision("percentage").notNull(),
 });
 
+// Physical chip denominations used to plan how many chips (per color/value)
+// are needed for the tournament — purely a logistics/planning tool for the
+// "Chips Summary" tab, with no effect on prize pool math or player chip
+// counts. Rows are grouped by `phase` (which entry type they belong to:
+// the initial stack, a rebuy, an add-on, or the dealer add-on) and replaced
+// wholesale on save, the same pattern used for `levels` and `prizes`.
+export const chipDenominations = pgTable("chip_denominations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tournamentId: uuid("tournament_id")
+    .notNull()
+    .references(() => tournaments.id, { onDelete: "cascade" }),
+  phase: text("phase").notNull(), // "initial" | "rebuy" | "addon" | "dealer_addon"
+  order: integer("order").notNull(),
+  value: doublePrecision("value").notNull(),
+  color: text("color").notNull(),
+  count: integer("count").notNull(),
+});
+
 export const tournamentsRelations = relations(tournaments, ({ many }) => ({
   blindLevels: many(blindLevels),
   players: many(players),
   prizes: many(prizes),
+  chipDenominations: many(chipDenominations),
 }));
 
 export const blindLevelsRelations = relations(blindLevels, ({ one }) => ({
@@ -134,6 +174,13 @@ export const playersRelations = relations(players, ({ one }) => ({
 export const prizesRelations = relations(prizes, ({ one }) => ({
   tournament: one(tournaments, {
     fields: [prizes.tournamentId],
+    references: [tournaments.id],
+  }),
+}));
+
+export const chipDenominationsRelations = relations(chipDenominations, ({ one }) => ({
+  tournament: one(tournaments, {
+    fields: [chipDenominations.tournamentId],
     references: [tournaments.id],
   }),
 }));

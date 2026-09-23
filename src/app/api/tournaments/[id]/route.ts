@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const admin = req.nextUrl.searchParams.get("admin");
-    const [{ tournament, levels, players, prizes }, appSettings] = await Promise.all([
+    const [{ tournament, levels, players, prizes, chipDenominations }, appSettings] = await Promise.all([
       getTournamentState(id),
       getAppSettings(),
     ]);
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         levels,
         players,
         prizes,
+        chipDenominations,
         isAdmin,
         origin: req.nextUrl.origin,
         appLogoUrl: appSettings?.logoUrl,
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = await req.json();
     const { adminToken, ...patch } = body;
-    const [{ tournament, levels, players, prizes }, appSettings] = await Promise.all([
+    const [{ tournament, levels, players, prizes, chipDenominations }, appSettings] = await Promise.all([
       updateTournamentSettings(id, adminToken, patch),
       getAppSettings(),
     ]);
@@ -45,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         levels,
         players,
         prizes,
+        chipDenominations,
         isAdmin: true,
         origin: req.nextUrl.origin,
         appLogoUrl: appSettings?.logoUrl,

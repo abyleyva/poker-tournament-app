@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type DictKey } from "@/lib/i18n";
 import { useTournamentPoll } from "@/lib/use-tournament-poll";
 import { formatClock, formatCurrency, isBubblePhase, secondsUntilNextBreak } from "@/lib/tournament-logic";
 import { saveLocalTournament } from "@/lib/local-tournaments";
@@ -64,7 +64,7 @@ function AdminPageInner() {
     2500
   );
 
-  const [tab, setTab] = useState<"clock" | "players" | "prizes" | "levels" | "settings">("clock");
+  const [tab, setTab] = useState<"clock" | "players" | "prizes" | "levels" | "chips" | "settings">("clock");
 
   useEffect(() => {
     if (data?.isAdmin && data?.name) {
@@ -130,7 +130,7 @@ function AdminPageInner() {
       </div>
 
       <div className="flex gap-2 border-b border-neutral-800 mb-6">
-        {(["clock", "players", "prizes", "levels", "settings"] as const).map((tabKey) => (
+        {(["clock", "players", "prizes", "levels", "chips", "settings"] as const).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -151,6 +151,7 @@ function AdminPageInner() {
       {tab === "players" && <PlayersTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "prizes" && <PrizesTab data={data} />}
       {tab === "levels" && <LevelsTab data={data} id={id} adminToken={adminToken} setData={setData} />}
+      {tab === "chips" && <ChipsSummaryTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "settings" && <SettingsTab data={data} id={id} adminToken={adminToken} setData={setData} />}
     </div>
   );
@@ -874,6 +875,9 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     allowAddOn: data.allowAddOn,
     addOnPrice: data.addOnPrice ?? 0,
     addOnStack: data.addOnStack ?? data.startingStack,
+    allowDealerAddOn: data.chipPlan?.allowDealerAddOn ?? false,
+    dealerAddOnPrice: data.chipPlan?.dealerAddOnPrice ?? 0,
+    dealerAddOnStack: data.chipPlan?.dealerAddOnStack ?? data.startingStack,
     feeEnabled: (data.organizerFee?.mode ?? "none") !== "none",
     feeMode: (data.organizerFee?.mode && data.organizerFee.mode !== "none" ? data.organizerFee.mode : "percentage") as "percentage" | "fixed",
     feeValue: data.organizerFee?.value ?? 0,
@@ -976,6 +980,40 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
             <div>
               <label className={labelClass}>{t("wizard_addOnStack")}</label>
               <input type="number" className={inputClass} value={form.addOnStack} onChange={(e) => setForm({ ...form, addOnStack: Number(e.target.value) })} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-neutral-800 p-4">
+        <label className="flex items-center gap-2 text-white text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={form.allowDealerAddOn}
+            onChange={(e) => setForm({ ...form, allowDealerAddOn: e.target.checked })}
+          />
+          {t("settings_dealer_addon_enable")}
+        </label>
+        <p className="mt-1 text-xs text-neutral-500">{t("settings_dealer_addon_hint")}</p>
+        {form.allowDealerAddOn && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>{t("settings_dealer_addon_price")}</label>
+              <input
+                type="number"
+                className={inputClass}
+                value={form.dealerAddOnPrice}
+                onChange={(e) => setForm({ ...form, dealerAddOnPrice: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>{t("settings_dealer_addon_stack")}</label>
+              <input
+                type="number"
+                className={inputClass}
+                value={form.dealerAddOnStack}
+                onChange={(e) => setForm({ ...form, dealerAddOnStack: Number(e.target.value) })}
+              />
             </div>
           </div>
         )}
@@ -1115,5 +1153,340 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
         {saved ? t("settings_saved") : t("settings_save")}
       </button>
     </form>
+  );
+}
+
+type ChipPhase = "initial" | "rebuy" | "addon" | "dealer_addon";
+
+type ChipRow = {
+  key: string;
+  phase: ChipPhase;
+  value: number | "";
+  color: string;
+  count: number | "";
+};
+
+type ExpectedField = "expectedPlayers" | "expectedRebuys" | "expectedAddOns" | "expectedDealerAddOns";
+
+// Each phase drives its own chip math: whether it's shown at all, which stack
+// size its denominations should add up to, and which manual "expected
+// occurrences" field multiplies a single stack into the total volume needed.
+// The dealer add-on phase is purely logistics — its cost is a tip for the
+// dealers and is never part of computePrizePool()/the prize pool math.
+const CHIP_PHASES: {
+  key: ChipPhase;
+  titleKey: DictKey;
+  enabled: (data: any) => boolean;
+  stack: (data: any) => number | null;
+  expectedField: ExpectedField;
+  expectedLabelKey: DictKey;
+}[] = [
+  {
+    key: "initial",
+    titleKey: "chips_section_initial",
+    enabled: () => true,
+    stack: (data) => data.startingStack ?? null,
+    expectedField: "expectedPlayers",
+    expectedLabelKey: "chips_expected_players",
+  },
+  {
+    key: "rebuy",
+    titleKey: "chips_section_rebuy",
+    enabled: (data) => !!data.allowRebuy,
+    stack: (data) => data.rebuyStack ?? null,
+    expectedField: "expectedRebuys",
+    expectedLabelKey: "chips_expected_rebuys",
+  },
+  {
+    key: "addon",
+    titleKey: "chips_section_addon",
+    enabled: (data) => !!data.allowAddOn,
+    stack: (data) => data.addOnStack ?? null,
+    expectedField: "expectedAddOns",
+    expectedLabelKey: "chips_expected_addons",
+  },
+  {
+    key: "dealer_addon",
+    titleKey: "chips_section_dealer_addon",
+    enabled: (data) => !!data.chipPlan?.allowDealerAddOn,
+    stack: (data) => data.chipPlan?.dealerAddOnStack ?? null,
+    expectedField: "expectedDealerAddOns",
+    expectedLabelKey: "chips_expected_dealer_addons",
+  },
+];
+
+function serverDenomsToRows(denominations: any[] | undefined): ChipRow[] {
+  return (denominations ?? [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((d) => ({
+      key: d.id,
+      phase: d.phase as ChipPhase,
+      value: d.value,
+      color: d.color,
+      count: d.count,
+    }));
+}
+
+function ChipsSummaryTab({ data, id, adminToken, setData }: any) {
+  const { t } = useI18n();
+
+  const [expected, setExpected] = useState({
+    expectedPlayers: data.chipPlan?.expectedPlayers ?? 0,
+    expectedRebuys: data.chipPlan?.expectedRebuys ?? 0,
+    expectedAddOns: data.chipPlan?.expectedAddOns ?? 0,
+    expectedDealerAddOns: data.chipPlan?.expectedDealerAddOns ?? 0,
+  });
+  const [rows, setRows] = useState<ChipRow[]>(() => serverDenomsToRows(data.chipPlan?.denominations));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const newKeyRef = useRef(0);
+  function nextKey() {
+    newKeyRef.current += 1;
+    return `new-${newKeyRef.current}`;
+  }
+
+  function rowsForPhase(phase: ChipPhase) {
+    return rows.filter((r) => r.phase === phase);
+  }
+
+  function addRow(phase: ChipPhase) {
+    setRows((prev) => [...prev, { key: nextKey(), phase, value: "", color: "", count: "" }]);
+  }
+
+  function updateRow(key: string, patch: Partial<ChipRow>) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function removeRow(key: string) {
+    setRows((prev) => prev.filter((r) => r.key !== key));
+  }
+
+  const enabledPhaseKeys = useMemo(
+    () => new Set(CHIP_PHASES.filter((p) => p.enabled(data)).map((p) => p.key)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.allowRebuy, data.allowAddOn, data.chipPlan?.allowDealerAddOn]
+  );
+
+  const grandTotal = useMemo(() => {
+    const totals = new Map<string, { value: number; color: string; count: number }>();
+    for (const row of rows) {
+      if (!enabledPhaseKeys.has(row.phase)) continue;
+      const value = Number(row.value) || 0;
+      const count = Number(row.count) || 0;
+      const color = row.color.trim();
+      if (value <= 0 || count <= 0 || !color) continue;
+      const phaseConfig = CHIP_PHASES.find((p) => p.key === row.phase)!;
+      const multiplier = Number((expected as any)[phaseConfig.expectedField]) || 0;
+      const volume = count * multiplier;
+      if (volume <= 0) continue;
+      const groupKey = `${value}|${color.toLowerCase()}`;
+      const existing = totals.get(groupKey);
+      if (existing) existing.count += volume;
+      else totals.set(groupKey, { value, color, count: volume });
+    }
+    return Array.from(totals.values()).sort((a, b) => a.value - b.value || a.color.localeCompare(b.color));
+  }, [rows, enabledPhaseKeys, expected]);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        adminToken,
+        expectedPlayers: Number(expected.expectedPlayers) || 0,
+        expectedRebuys: Number(expected.expectedRebuys) || 0,
+        expectedAddOns: Number(expected.expectedAddOns) || 0,
+        expectedDealerAddOns: Number(expected.expectedDealerAddOns) || 0,
+        chipDenominations: rows
+          .filter((r) => r.color.trim() !== "" && r.value !== "" && Number(r.value) > 0 && r.count !== "")
+          .map((r) => ({
+            phase: r.phase,
+            value: Number(r.value),
+            color: r.color.trim(),
+            count: Number(r.count),
+          })),
+      };
+      const res = await fetch(`/api/tournaments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("wizard_error_generic"));
+      setData(json);
+      setRows(serverDenomsToRows(json.chipPlan?.denominations));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white text-sm focus:border-accent-500 focus:outline-none disabled:opacity-50";
+  const labelClass = "block text-xs font-medium text-neutral-400 mb-1";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+        <h3 className="font-semibold text-white">{t("chips_title")}</h3>
+        <p className="mt-1 text-sm text-neutral-500">{t("chips_hint")}</p>
+      </div>
+
+      {CHIP_PHASES.filter((phase) => phase.enabled(data)).map((phase) => {
+        const phaseRows = rowsForPhase(phase.key);
+        const target = phase.stack(data);
+        const currentSum = phaseRows.reduce(
+          (sum, r) => sum + (Number(r.value) || 0) * (Number(r.count) || 0),
+          0
+        );
+        const hasMismatch = target != null && phaseRows.length > 0 && currentSum !== target;
+
+        return (
+          <div key={phase.key} className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h3 className="font-semibold text-white">{t(phase.titleKey)}</h3>
+              <button
+                type="button"
+                onClick={() => addRow(phase.key)}
+                className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-500"
+              >
+                {t("chips_denom_add_row")}
+              </button>
+            </div>
+
+            <div className="mb-4 max-w-[220px]">
+              <label className={labelClass}>{t(phase.expectedLabelKey)}</label>
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={(expected as any)[phase.expectedField]}
+                onChange={(e) =>
+                  setExpected((prev) => ({ ...prev, [phase.expectedField]: e.target.value === "" ? "" : Number(e.target.value) }))
+                }
+              />
+            </div>
+
+            {phaseRows.length === 0 ? (
+              <p className="text-sm text-neutral-500">{t("chips_no_rows")}</p>
+            ) : (
+              <div className="space-y-3">
+                {phaseRows.map((row) => {
+                  const subtotal = (Number(row.value) || 0) * (Number(row.count) || 0);
+                  const multiplier = Number((expected as any)[phase.expectedField]) || 0;
+                  const volume = (Number(row.count) || 0) * multiplier;
+                  return (
+                    <div key={row.key} className="rounded-xl border border-neutral-800 p-3">
+                      <div className="grid gap-3 sm:grid-cols-4">
+                        <div>
+                          <label className={labelClass}>{t("chips_denom_value")}</label>
+                          <input
+                            type="number"
+                            min={0}
+                            className={inputClass}
+                            value={row.value}
+                            onChange={(e) =>
+                              updateRow(row.key, { value: e.target.value === "" ? "" : Number(e.target.value) })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>{t("chips_denom_color")}</label>
+                          <input
+                            className={inputClass}
+                            placeholder={t("chips_denom_color_placeholder")}
+                            value={row.color}
+                            onChange={(e) => updateRow(row.key, { color: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>{t("chips_denom_count")}</label>
+                          <input
+                            type="number"
+                            min={0}
+                            className={inputClass}
+                            value={row.count}
+                            onChange={(e) =>
+                              updateRow(row.key, { count: e.target.value === "" ? "" : Number(e.target.value) })
+                            }
+                          />
+                        </div>
+                        <div className="flex items-end justify-between gap-2">
+                          <div className="text-xs text-neutral-500">
+                            <p>= {subtotal.toLocaleString()}</p>
+                            <p>{t("chips_volume")}: {volume.toLocaleString()}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeRow(row.key)}
+                            className="text-xs text-neutral-500 hover:text-red-400 shrink-0"
+                          >
+                            {t("chips_denom_remove")}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {target != null && phaseRows.length > 0 && (
+              <p className={`mt-3 text-xs ${hasMismatch ? "text-amber-400" : "text-accent-400"}`}>
+                {t("chips_current_total")}: {currentSum.toLocaleString()} / {t("chips_target_total")}: {target.toLocaleString()}
+                {" — "}
+                {hasMismatch ? t("chips_mismatch_warning") : t("chips_match_ok")}
+              </p>
+            )}
+          </div>
+        );
+      })}
+
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+        <h3 className="font-semibold text-white">{t("chips_grand_total_title")}</h3>
+        <p className="mt-1 mb-3 text-sm text-neutral-500">{t("chips_grand_total_hint")}</p>
+        {grandTotal.length === 0 ? (
+          <p className="text-sm text-neutral-500">{t("chips_grand_total_empty")}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide text-neutral-500">
+                  <th className="py-2 pr-4">{t("chips_grand_total_color")}</th>
+                  <th className="py-2 pr-4">{t("chips_grand_total_value")}</th>
+                  <th className="py-2 pr-4">{t("chips_grand_total_count")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grandTotal.map((row) => (
+                  <tr key={`${row.value}|${row.color}`} className="border-t border-neutral-800">
+                    <td className="py-2 pr-4 text-neutral-200">{row.color}</td>
+                    <td className="py-2 pr-4 text-neutral-200">{row.value.toLocaleString()}</td>
+                    <td className="py-2 pr-4 font-semibold text-white">{row.count.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        className="rounded-xl bg-accent-600 px-5 py-2.5 font-semibold text-white hover:bg-accent-500 disabled:opacity-60"
+      >
+        {saved ? t("chips_saved") : t("chips_save")}
+      </button>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { appSettings, blindLevels, players, prizes, tournaments } from "@/db/schema";
+import { appSettings, blindLevels, chipDenominations, players, prizes, tournaments } from "@/db/schema";
 import { generateToken } from "./tokens";
 import { computeAdvancedClock } from "./tournament-logic";
 import { DEFAULT_THEME_COLOR, isThemeColorId } from "./theme";
@@ -84,6 +84,14 @@ export type LevelInput = {
 
 export type PrizeInputRow = { position: number; percentage: number };
 
+export type ChipDenominationPhase = "initial" | "rebuy" | "addon" | "dealer_addon";
+export type ChipDenominationInput = {
+  phase: ChipDenominationPhase;
+  value: number;
+  color: string;
+  count: number;
+};
+
 export type CreateTournamentInput = {
   name: string;
   language?: string;
@@ -97,6 +105,20 @@ export type CreateTournamentInput = {
   allowAddOn: boolean;
   addOnPrice?: number | null;
   addOnStack?: number | null;
+  // Propina opcional a los dealers — nunca se descuenta de la bolsa de
+  // premios (ver el comentario en src/db/schema.ts). Solo alimenta la
+  // pestaña "Chips Summary".
+  allowDealerAddOn?: boolean;
+  dealerAddOnPrice?: number | null;
+  dealerAddOnStack?: number | null;
+  // Planeación manual de fichas físicas (pestaña "Chips Summary"), sin
+  // efecto en la bolsa de premios ni en el conteo real de fichas de cada
+  // jugador.
+  expectedPlayers?: number | null;
+  expectedRebuys?: number | null;
+  expectedAddOns?: number | null;
+  expectedDealerAddOns?: number | null;
+  chipDenominations?: ChipDenominationInput[];
   feeMode?: string | null;
   feeValue?: number | null;
   feeAppliesToRebuyAddOn?: boolean;
@@ -136,6 +158,13 @@ export async function createTournament(input: CreateTournamentInput) {
       addOnPrice: input.allowAddOn ? input.addOnPrice ?? 0 : null,
       logoUrl: input.logoUrl || null,
       addOnStack: input.allowAddOn ? input.addOnStack ?? input.startingStack : null,
+      allowDealerAddOn: !!input.allowDealerAddOn,
+      dealerAddOnPrice: input.allowDealerAddOn ? input.dealerAddOnPrice ?? 0 : null,
+      dealerAddOnStack: input.allowDealerAddOn ? input.dealerAddOnStack ?? input.startingStack : null,
+      expectedPlayers: input.expectedPlayers ?? null,
+      expectedRebuys: input.expectedRebuys ?? null,
+      expectedAddOns: input.expectedAddOns ?? null,
+      expectedDealerAddOns: input.expectedDealerAddOns ?? null,
       feeMode: normalizedFee.feeMode,
       feeValue: normalizedFee.feeValue,
       feeAppliesToRebuyAddOn: !!input.feeAppliesToRebuyAddOn,
@@ -172,6 +201,19 @@ export async function createTournament(input: CreateTournamentInput) {
     );
   }
 
+  if (input.chipDenominations && input.chipDenominations.length > 0) {
+    await db.insert(chipDenominations).values(
+      input.chipDenominations.map((d, idx) => ({
+        tournamentId: tournament.id,
+        phase: d.phase,
+        order: idx,
+        value: d.value,
+        color: d.color,
+        count: d.count,
+      }))
+    );
+  }
+
   return tournament;
 }
 
@@ -181,7 +223,7 @@ async function fetchFull(tournamentId: string) {
   });
   if (!tournament) throw new NotFoundError("Torneo no encontrado.");
 
-  const [levels, playerRows, prizeRows] = await Promise.all([
+  const [levels, playerRows, prizeRows, chipDenominationRows] = await Promise.all([
     db.query.blindLevels.findMany({
       where: eq(blindLevels.tournamentId, tournamentId),
       orderBy: (t, { asc }) => [asc(t.order)],
@@ -194,16 +236,24 @@ async function fetchFull(tournamentId: string) {
       where: eq(prizes.tournamentId, tournamentId),
       orderBy: (t, { asc }) => [asc(t.position)],
     }),
+    db.query.chipDenominations.findMany({
+      where: eq(chipDenominations.tournamentId, tournamentId),
+      orderBy: (t, { asc }) => [asc(t.order)],
+    }),
   ]);
 
-  return { tournament, levels, players: playerRows, prizes: prizeRows };
+  return { tournament, levels, players: playerRows, prizes: prizeRows, chipDenominations: chipDenominationRows };
 }
 
 /** Advances the clock if needed (server-authoritative) and persists the change. */
 async function tick(tournamentId: string) {
-  const { tournament, levels, players: playerRows, prizes: prizeRows } = await fetchFull(
-    tournamentId
-  );
+  const {
+    tournament,
+    levels,
+    players: playerRows,
+    prizes: prizeRows,
+    chipDenominations: chipDenominationRows,
+  } = await fetchFull(tournamentId);
 
   const advanced = computeAdvancedClock(
     {
@@ -238,10 +288,11 @@ async function tick(tournamentId: string) {
       levels,
       players: playerRows,
       prizes: prizeRows,
+      chipDenominations: chipDenominationRows,
     };
   }
 
-  return { tournament, levels, players: playerRows, prizes: prizeRows };
+  return { tournament, levels, players: playerRows, prizes: prizeRows, chipDenominations: chipDenominationRows };
 }
 
 export async function getTournamentState(tournamentId: string) {
@@ -354,6 +405,13 @@ export async function updateTournamentSettings(
   if (patch.allowAddOn !== undefined) updates.allowAddOn = patch.allowAddOn;
   if (patch.addOnPrice !== undefined) updates.addOnPrice = patch.addOnPrice;
   if (patch.addOnStack !== undefined) updates.addOnStack = patch.addOnStack;
+  if (patch.allowDealerAddOn !== undefined) updates.allowDealerAddOn = patch.allowDealerAddOn;
+  if (patch.dealerAddOnPrice !== undefined) updates.dealerAddOnPrice = patch.dealerAddOnPrice;
+  if (patch.dealerAddOnStack !== undefined) updates.dealerAddOnStack = patch.dealerAddOnStack;
+  if (patch.expectedPlayers !== undefined) updates.expectedPlayers = patch.expectedPlayers;
+  if (patch.expectedRebuys !== undefined) updates.expectedRebuys = patch.expectedRebuys;
+  if (patch.expectedAddOns !== undefined) updates.expectedAddOns = patch.expectedAddOns;
+  if (patch.expectedDealerAddOns !== undefined) updates.expectedDealerAddOns = patch.expectedDealerAddOns;
   if (normalizedFee) {
     updates.feeMode = normalizedFee.feeMode;
     updates.feeValue = normalizedFee.feeValue;
@@ -401,6 +459,22 @@ export async function updateTournamentSettings(
     if (patch.prizes.length > 0) {
       await db.insert(prizes).values(
         patch.prizes.map((p) => ({ tournamentId, position: p.position, percentage: p.percentage }))
+      );
+    }
+  }
+
+  if (patch.chipDenominations) {
+    await db.delete(chipDenominations).where(eq(chipDenominations.tournamentId, tournamentId));
+    if (patch.chipDenominations.length > 0) {
+      await db.insert(chipDenominations).values(
+        patch.chipDenominations.map((d, idx) => ({
+          tournamentId,
+          phase: d.phase,
+          order: idx,
+          value: d.value,
+          color: d.color,
+          count: d.count,
+        }))
       );
     }
   }

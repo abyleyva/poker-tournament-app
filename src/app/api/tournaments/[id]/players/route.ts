@@ -10,9 +10,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const { adminToken, name, email } = await req.json();
     await addPlayer(id, adminToken, { name, email });
-    const { tournament, levels, players, prizes } = await getTournamentState(id);
+    const { tournament, levels, players, prizes, chipDenominations } = await getTournamentState(id);
     return NextResponse.json(
-      serializeTournament({ tournament, levels, players, prizes, isAdmin: true, origin: req.nextUrl.origin }),
+      serializeTournament({
+        tournament,
+        levels,
+        players,
+        prizes,
+        chipDenominations,
+        isAdmin: true,
+        origin: req.nextUrl.origin,
+      }),
       { status: 201 }
     );
   } catch (error) {

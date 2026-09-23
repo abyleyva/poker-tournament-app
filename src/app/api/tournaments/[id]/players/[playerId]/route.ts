@@ -10,9 +10,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id, playerId } = await params;
     const { adminToken, ...patch } = await req.json();
     await updatePlayer(id, playerId, adminToken, patch);
-    const { tournament, levels, players, prizes } = await getTournamentState(id);
+    const { tournament, levels, players, prizes, chipDenominations } = await getTournamentState(id);
     return NextResponse.json(
-      serializeTournament({ tournament, levels, players, prizes, isAdmin: true, origin: req.nextUrl.origin })
+      serializeTournament({
+        tournament,
+        levels,
+        players,
+        prizes,
+        chipDenominations,
+        isAdmin: true,
+        origin: req.nextUrl.origin,
+      })
     );
   } catch (error) {
     return handleApiError(error);
@@ -24,9 +32,17 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { id, playerId } = await params;
     const adminToken = req.nextUrl.searchParams.get("adminToken");
     await removePlayer(id, playerId, adminToken ?? "");
-    const { tournament, levels, players, prizes } = await getTournamentState(id);
+    const { tournament, levels, players, prizes, chipDenominations } = await getTournamentState(id);
     return NextResponse.json(
-      serializeTournament({ tournament, levels, players, prizes, isAdmin: true, origin: req.nextUrl.origin })
+      serializeTournament({
+        tournament,
+        levels,
+        players,
+        prizes,
+        chipDenominations,
+        isAdmin: true,
+        origin: req.nextUrl.origin,
+      })
     );
   } catch (error) {
     return handleApiError(error);

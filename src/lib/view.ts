@@ -1,4 +1,4 @@
-import { blindLevels, players, prizes, tournaments } from "@/db/schema";
+import { blindLevels, chipDenominations, players, prizes, tournaments } from "@/db/schema";
 import {
   computePrizePayouts,
   computePrizePool,
@@ -10,17 +10,28 @@ type Tournament = typeof tournaments.$inferSelect;
 type Level = typeof blindLevels.$inferSelect;
 type Player = typeof players.$inferSelect;
 type Prize = typeof prizes.$inferSelect;
+type ChipDenomination = typeof chipDenominations.$inferSelect;
 
 export function serializeTournament(params: {
   tournament: Tournament;
   levels: Level[];
   players: Player[];
   prizes: Prize[];
+  chipDenominations?: ChipDenomination[];
   isAdmin: boolean;
   origin: string;
   appLogoUrl?: string | null;
 }) {
-  const { tournament, levels, players: playerRows, prizes: prizeRows, isAdmin, origin, appLogoUrl } = params;
+  const {
+    tournament,
+    levels,
+    players: playerRows,
+    prizes: prizeRows,
+    chipDenominations: chipDenominationRows = [],
+    isAdmin,
+    origin,
+    appLogoUrl,
+  } = params;
   const now = new Date();
 
   const entriesCount = playerRows.length;
@@ -107,6 +118,25 @@ export function serializeTournament(params: {
             appliesToRebuyAddOn: tournament.feeAppliesToRebuyAddOn,
             grossPool: Math.round(grossPool * 100) / 100,
             totalRetained: Math.round(feeTotal * 100) / 100,
+          },
+          // El costo del dealer add-on es una propina para los dealers y nunca
+          // se contabiliza en el premio final (ver computePrizePool arriba).
+          chipPlan: {
+            expectedPlayers: tournament.expectedPlayers,
+            expectedRebuys: tournament.expectedRebuys,
+            expectedAddOns: tournament.expectedAddOns,
+            expectedDealerAddOns: tournament.expectedDealerAddOns,
+            allowDealerAddOn: tournament.allowDealerAddOn,
+            dealerAddOnPrice: tournament.dealerAddOnPrice,
+            dealerAddOnStack: tournament.dealerAddOnStack,
+            denominations: chipDenominationRows.map((d) => ({
+              id: d.id,
+              phase: d.phase,
+              order: d.order,
+              value: d.value,
+              color: d.color,
+              count: d.count,
+            })),
           },
         }
       : {}),
