@@ -362,12 +362,54 @@ function assertLevelsAppendOnly(existing: { order: number; isBreak: boolean; sma
   }
 }
 
+// Prize structure (paid places + percentage of the pool for each) is only
+// editable while the tournament is still a draft: once the clock starts,
+// players are being eliminated into specific paid/bubble places and the
+// payouts shown on the public screen depend on this list, so rewriting it
+// would change what people were already told. Enforced here, not only in the
+// UI, so a hand-made HTTP request can't bypass it.
+function normalizePrizes(incoming: PrizeInputRow[]): PrizeInputRow[] {
+  if (!Array.isArray(incoming)) {
+    throw new ValidationError("Los premios no tienen un formato válido.");
+  }
+  const normalized = incoming.map((p, idx) => {
+    const percentage = Number(p?.percentage);
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+      throw new ValidationError("El porcentaje de cada lugar debe estar entre 0 y 100.");
+    }
+    // Places are always renumbered 1..n in list order, so removing a place in
+    // the middle never leaves a gap.
+    return { position: idx + 1, percentage: Math.round(percentage * 100) / 100 };
+  });
+  const total = normalized.reduce((sum, p) => sum + p.percentage, 0);
+  if (total > 100 + 1e-9) {
+    throw new ValidationError("La suma de los porcentajes no puede superar 100%.");
+  }
+  return normalized;
+}
+
+function assertPrizesUnchangedIfStarted(
+  existing: { position: number; percentage: number }[],
+  incoming: PrizeInputRow[]
+) {
+  const sortedExisting = [...existing].sort((a, b) => a.position - b.position);
+  const sameLength = sortedExisting.length === incoming.length;
+  const same =
+    sameLength &&
+    sortedExisting.every((p, i) => p.position === incoming[i].position && p.percentage === incoming[i].percentage);
+  if (!same) {
+    throw new ValidationError(
+      "El torneo ya inició: los lugares premiados y sus porcentajes ya no se pueden modificar."
+    );
+  }
+}
+
 export async function updateTournamentSettings(
   tournamentId: string,
   adminToken: string,
   patch: Partial<CreateTournamentInput>
 ) {
-  const { tournament, levels: existingLevels } = await fetchFull(tournamentId);
+  const { tournament, levels: existingLevels, prizes: existingPrizes } = await fetchFull(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
 
   const feeFieldsProvided =
@@ -430,6 +472,16 @@ export async function updateTournamentSettings(
     updates.logoUrl = patch.logoUrl || null;
   }
 
+  // Validate the prize structure before any write, so a rejected request
+  // doesn't leave the other settings half-applied.
+  let normalizedPrizes: PrizeInputRow[] | undefined;
+  if (patch.prizes) {
+    normalizedPrizes = normalizePrizes(patch.prizes);
+    if (tournament.status !== "draft") {
+      assertPrizesUnchangedIfStarted(existingPrizes, normalizedPrizes);
+    }
+  }
+
   await db.update(tournaments).set(updates).where(eq(tournaments.id, tournamentId));
 
   if (patch.levels) {
@@ -454,11 +506,11 @@ export async function updateTournamentSettings(
     }
   }
 
-  if (patch.prizes) {
+  if (normalizedPrizes) {
     await db.delete(prizes).where(eq(prizes.tournamentId, tournamentId));
-    if (patch.prizes.length > 0) {
+    if (normalizedPrizes.length > 0) {
       await db.insert(prizes).values(
-        patch.prizes.map((p) => ({ tournamentId, position: p.position, percentage: p.percentage }))
+        normalizedPrizes.map((p) => ({ tournamentId, position: p.position, percentage: p.percentage }))
       );
     }
   }

@@ -152,7 +152,7 @@ function AdminPageInner() {
         <ClockTab data={data} currentLevel={currentLevel} nextLevel={nextLevel} onControl={control} />
       )}
       {tab === "players" && <PlayersTab data={data} id={id} adminToken={adminToken} setData={setData} />}
-      {tab === "prizes" && <PrizesTab data={data} />}
+      {tab === "prizes" && <PrizesTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "levels" && <LevelsTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "chips" && <ChipsSummaryTab data={data} id={id} adminToken={adminToken} setData={setData} />}
       {tab === "settings" && <SettingsTab data={data} id={id} adminToken={adminToken} setData={setData} />}
@@ -451,8 +451,65 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
   );
 }
 
-function PrizesTab({ data }: any) {
+function PrizesTab({ data, id, adminToken, setData }: any) {
   const { t } = useI18n();
+  // Paid places and their percentages can only be rewritten before the
+  // tournament starts (the server enforces the same rule).
+  const editable = data.status === "draft";
+
+  type PrizeEditRow = { key: string; percentage: number | "" };
+  const [rows, setRows] = useState<PrizeEditRow[]>(() =>
+    data.payouts.map((p: { percentage: number }, idx: number) => ({ key: `existing-${idx}`, percentage: p.percentage }))
+  );
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const newKeyRef = useRef(0);
+
+  const totalPct = useMemo(
+    () => rows.reduce((sum, r) => sum + (typeof r.percentage === "number" ? r.percentage : 0), 0),
+    [rows]
+  );
+  const roundedTotal = Math.round(totalPct * 100) / 100;
+  const overLimit = roundedTotal > 100;
+
+  function addRow() {
+    newKeyRef.current += 1;
+    setRows((prev) => [...prev, { key: `new-${newKeyRef.current}`, percentage: 0 }]);
+  }
+  function updateRow(key: string, percentage: number | "") {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, percentage } : r)));
+  }
+  function removeRow(key: string) {
+    setRows((prev) => prev.filter((r) => r.key !== key));
+  }
+
+  async function savePrizes() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tournaments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminToken,
+          prizes: rows.map((r, idx) => ({ position: idx + 1, percentage: Number(r.percentage) || 0 })),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("wizard_error_generic"));
+      setData(json);
+      setRows(
+        json.payouts.map((p: { percentage: number }, idx: number) => ({ key: `existing-${idx}`, percentage: p.percentage }))
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
   const fee = data.organizerFee;
   const hasFee = fee && fee.mode !== "none" && fee.totalRetained > 0;
   return (
@@ -488,6 +545,99 @@ function PrizesTab({ data }: any) {
         )}
       </div>
 
+      {editable ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-neutral-400">{t("prizes_edit_hint")}</p>
+            <button
+              type="button"
+              onClick={addRow}
+              className="shrink-0 rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-500"
+            >
+              {t("prizes_add_place")}
+            </button>
+          </div>
+
+          {rows.length === 0 ? (
+            <p className="text-neutral-500">{t("prizes_none")}</p>
+          ) : (
+            <table className="w-full overflow-hidden rounded-2xl border border-neutral-800 text-sm">
+              <thead className="bg-neutral-900 text-neutral-400">
+                <tr>
+                  <th className="px-4 py-2 text-left">{t("prizes_place")}</th>
+                  <th className="px-4 py-2 text-left">{t("prizes_percentage")}</th>
+                  <th className="px-4 py-2 text-left">{t("prizes_amount")}</th>
+                  <th className="px-4 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-800 bg-neutral-900/40">
+                {rows.map((r, idx) => (
+                  <tr key={r.key}>
+                    <td className="px-4 py-2 text-white">#{idx + 1}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="any"
+                          aria-label={`${t("prizes_percentage")} #${idx + 1}`}
+                          className="w-24 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-white focus:border-accent-500 focus:outline-none"
+                          value={r.percentage}
+                          onChange={(e) => updateRow(r.key, e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                        <span className="text-neutral-400">%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 font-medium text-accent-400">
+                      {formatCurrency(
+                        Math.round(((data.prizePool * (Number(r.percentage) || 0)) / 100) * 100) / 100,
+                        data.currency,
+                        "es-MX"
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(r.key)}
+                        className="text-xs text-neutral-500 hover:text-red-400"
+                      >
+                        {t("wizard_level_remove")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <p
+            className={`text-sm ${
+              overLimit ? "text-red-400" : roundedTotal === 100 ? "text-emerald-400" : "text-amber-400"
+            }`}
+          >
+            {t("prizes_total")}: {roundedTotal}%
+            {overLimit
+              ? ` — ${t("prizes_total_over")}`
+              : roundedTotal !== 100
+                ? ` — ${t("wizard_prize_total_warning")}`
+                : ""}
+          </p>
+
+          {error && <p className="text-sm text-red-400">{error}</p>}
+
+          <button
+            type="button"
+            onClick={savePrizes}
+            disabled={saving || overLimit}
+            className="rounded-xl bg-accent-600 px-5 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
+          >
+            {saved ? t("prizes_saved") : t("prizes_save")}
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-amber-400">{t("prizes_locked_hint")}</p>
       {data.payouts.length === 0 ? (
         <p className="text-neutral-500">{t("prizes_none")}</p>
       ) : (
@@ -511,6 +661,8 @@ function PrizesTab({ data }: any) {
             ))}
           </tbody>
         </table>
+      )}
+        </>
       )}
     </div>
   );
