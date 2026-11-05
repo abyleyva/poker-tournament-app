@@ -102,7 +102,10 @@ export default function JoinPage() {
               </div>
             </div>
 
-            {data.allowRebuy && (
+            {data.allowRebuy && data.maxRebuys != null && me.rebuysCount >= data.maxRebuys && (
+              <p className="mb-6 text-center text-sm text-neutral-400">{t("join_rebuy_limit_reached")}</p>
+            )}
+            {data.allowRebuy && !(data.maxRebuys != null && me.rebuysCount >= data.maxRebuys) && (
               <button
                 onClick={requestRebuy}
                 disabled={rebuySent || me.requestedRebuy}

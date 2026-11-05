@@ -121,6 +121,8 @@ const dictionaries = {
     players_reactivate: "Reactivar",
     players_rebuy_cta: "Registrar recompra",
     players_addon_cta: "Registrar add-on",
+    players_addon_done: "Add-on ya registrado",
+    players_rebuy_limit_reached: "Máximo de recompras alcanzado",
     players_finish_position: "Lugar final",
     players_requested_rebuy: "Pidió recompra",
     players_none: "Todavía no has agregado jugadores.",
@@ -279,6 +281,7 @@ const dictionaries = {
     join_leaderboard: "Tabla de posiciones",
     join_request_rebuy: "Solicitar recompra",
     join_request_rebuy_sent: "Se notificó al organizador",
+    join_rebuy_limit_reached: "Ya alcanzaste el máximo de recompras de este torneo.",
     join_eliminated_msg: "Fuiste eliminado del torneo. ¡Gracias por jugar!",
     join_not_started: "El torneo todavía no comienza.",
 
@@ -409,6 +412,8 @@ const dictionaries = {
     players_reactivate: "Reactivate",
     players_rebuy_cta: "Log rebuy",
     players_addon_cta: "Log add-on",
+    players_addon_done: "Add-on already logged",
+    players_rebuy_limit_reached: "Rebuy limit reached",
     players_finish_position: "Final place",
     players_requested_rebuy: "Requested rebuy",
     players_none: "You haven't added any players yet.",
@@ -567,6 +572,7 @@ const dictionaries = {
     join_leaderboard: "Leaderboard",
     join_request_rebuy: "Request rebuy",
     join_request_rebuy_sent: "The organizer has been notified",
+    join_rebuy_limit_reached: "You have reached this tournament's rebuy limit.",
     join_eliminated_msg: "You were eliminated from the tournament. Thanks for playing!",
     join_not_started: "The tournament hasn't started yet.",
 

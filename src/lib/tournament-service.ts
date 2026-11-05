@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { appSettings, blindLevels, chipDenominations, players, prizes, tournaments } from "@/db/schema";
 import { generateToken } from "./tokens";
@@ -153,7 +153,7 @@ export async function createTournament(input: CreateTournamentInput) {
       allowRebuy: input.allowRebuy,
       rebuyPrice: input.allowRebuy ? input.rebuyPrice ?? 0 : null,
       rebuyStack: input.allowRebuy ? input.rebuyStack ?? input.startingStack : null,
-      maxRebuys: input.allowRebuy ? input.maxRebuys ?? null : null,
+      maxRebuys: input.allowRebuy ? normalizeMaxRebuys(input.maxRebuys) : null,
       allowAddOn: input.allowAddOn,
       addOnPrice: input.allowAddOn ? input.addOnPrice ?? 0 : null,
       logoUrl: input.logoUrl || null,
@@ -443,7 +443,7 @@ export async function updateTournamentSettings(
   if (patch.allowRebuy !== undefined) updates.allowRebuy = patch.allowRebuy;
   if (patch.rebuyPrice !== undefined) updates.rebuyPrice = patch.rebuyPrice;
   if (patch.rebuyStack !== undefined) updates.rebuyStack = patch.rebuyStack;
-  if (patch.maxRebuys !== undefined) updates.maxRebuys = patch.maxRebuys;
+  if (patch.maxRebuys !== undefined) updates.maxRebuys = normalizeMaxRebuys(patch.maxRebuys);
   if (patch.allowAddOn !== undefined) updates.allowAddOn = patch.allowAddOn;
   if (patch.addOnPrice !== undefined) updates.addOnPrice = patch.addOnPrice;
   if (patch.addOnStack !== undefined) updates.addOnStack = patch.addOnStack;
@@ -687,6 +687,42 @@ export type PlayerPatch = {
   clearRebuyRequest?: boolean;
 };
 
+// Each player can buy at most ONE add-on, and at most `maxRebuys` rebuys when
+// the organizer set a limit (null = unlimited). Checked here so the rule holds
+// no matter which client sends the request.
+const MAX_ADDONS_PER_PLAYER = 1;
+
+function assertCanRebuy(
+  tournament: { allowRebuy: boolean; maxRebuys: number | null },
+  player: { rebuysCount: number | null }
+) {
+  if (!tournament.allowRebuy) {
+    throw new ValidationError("Las recompras no están habilitadas en este torneo.");
+  }
+  if (tournament.maxRebuys != null && (player.rebuysCount ?? 0) >= tournament.maxRebuys) {
+    throw new ValidationError(
+      `Este jugador ya alcanzó el máximo de recompras permitidas (${tournament.maxRebuys}).`
+    );
+  }
+}
+
+function assertCanAddOn(tournament: { allowAddOn: boolean }, player: { addOnsCount: number | null }) {
+  if (!tournament.allowAddOn) {
+    throw new ValidationError("El add-on no está habilitado en este torneo.");
+  }
+  if ((player.addOnsCount ?? 0) >= MAX_ADDONS_PER_PLAYER) {
+    throw new ValidationError("Este jugador ya compró su add-on (solo se permite uno por jugador).");
+  }
+}
+
+function normalizeMaxRebuys(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isInteger(value) || value < 0) {
+    throw new ValidationError("El máximo de recompras debe ser un número entero de 0 o más.");
+  }
+  return value;
+}
+
 export async function updatePlayer(
   tournamentId: string,
   playerId: string,
@@ -702,6 +738,9 @@ export async function updatePlayer(
   if (!player) throw new NotFoundError("Jugador no encontrado.");
 
   const updates: Record<string, unknown> = {};
+
+  if (patch.rebuy) assertCanRebuy(tournament, player);
+  if (patch.addOn) assertCanAddOn(tournament, player);
 
   if (patch.chipCount !== undefined) updates.chipCount = patch.chipCount;
   if (patch.eliminate) {
@@ -726,7 +765,20 @@ export async function updatePlayer(
   }
   if (patch.clearRebuyRequest) updates.requestedRebuy = false;
 
-  await db.update(players).set(updates).where(eq(players.id, playerId));
+  // The limits are also part of the UPDATE's WHERE clause, so two requests
+  // racing each other (e.g. a double click on "Log add-on") can't both get
+  // through: the second one matches no row and is rejected.
+  const guards = [eq(players.id, playerId)];
+  if (patch.addOn) guards.push(lt(players.addOnsCount, MAX_ADDONS_PER_PLAYER));
+  if (patch.rebuy && tournament.maxRebuys != null) guards.push(lt(players.rebuysCount, tournament.maxRebuys));
+  const updated = await db.update(players).set(updates).where(and(...guards)).returning({ id: players.id });
+  if (updated.length === 0) {
+    throw new ValidationError(
+      patch.addOn
+        ? "Este jugador ya compró su add-on (solo se permite uno por jugador)."
+        : "Este jugador ya alcanzó el máximo de recompras permitidas."
+    );
+  }
 
   // The runner-up (2nd place) busting out means only the winner is left
   // active — there's no one left to compete against, so the tournament is
@@ -764,5 +816,8 @@ export async function getPlayerByToken(token: string) {
 export async function requestRebuy(token: string) {
   const player = await db.query.players.findFirst({ where: eq(players.inviteToken, token) });
   if (!player) throw new NotFoundError("Invitación no encontrada.");
+  const tournament = await db.query.tournaments.findFirst({ where: eq(tournaments.id, player.tournamentId) });
+  if (!tournament) throw new NotFoundError("Torneo no encontrado.");
+  assertCanRebuy(tournament, player);
   await db.update(players).set({ requestedRebuy: true }).where(eq(players.id, player.id));
 }

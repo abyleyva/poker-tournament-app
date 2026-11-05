@@ -382,13 +382,20 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                   <span className="text-neutral-500">{t("players_chip_count")}:</span>
                   <input
                     type="number"
+                    // The field is uncontrolled (saves on blur), so it is keyed by the
+                    // stored chip count: when a rebuy/add-on or another edit changes it
+                    // on the server, the input remounts and shows the new value.
+                    key={`${p.id}-${p.chipCount ?? 0}`}
                     defaultValue={p.chipCount ?? 0}
                     onBlur={(e) => patchPlayer(p.id, { chipCount: Number(e.target.value) })}
                     className="w-28 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
                   />
                 </div>
                 <div className="text-sm text-neutral-400">
-                  {t("players_rebuys")}: {p.rebuysCount} · {t("players_addons")}: {p.addOnsCount}
+                  {t("players_rebuys")}: {p.rebuysCount}
+                  {data.allowRebuy && data.maxRebuys != null ? `/${data.maxRebuys}` : ""} · {t("players_addons")}:{" "}
+                  {p.addOnsCount}
+                  {data.allowAddOn ? "/1" : ""}
                   {p.finishPosition ? ` · ${t("players_finish_position")}: ${p.finishPosition}` : ""}
                 </div>
               </div>
@@ -405,17 +412,21 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                 {data.allowRebuy && p.status === "active" && (
                   <button
                     onClick={() => patchPlayer(p.id, { rebuy: true })}
-                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500"
+                    disabled={data.maxRebuys != null && p.rebuysCount >= data.maxRebuys}
+                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700"
                   >
-                    {t("players_rebuy_cta")}
+                    {data.maxRebuys != null && p.rebuysCount >= data.maxRebuys
+                      ? t("players_rebuy_limit_reached")
+                      : t("players_rebuy_cta")}
                   </button>
                 )}
                 {data.allowAddOn && p.status === "active" && (
                   <button
                     onClick={() => patchPlayer(p.id, { addOn: true })}
-                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500"
+                    disabled={p.addOnsCount >= 1}
+                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700"
                   >
-                    {t("players_addon_cta")}
+                    {p.addOnsCount >= 1 ? t("players_addon_done") : t("players_addon_cta")}
                   </button>
                 )}
                 {p.status === "active" ? (
@@ -1058,6 +1069,7 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
     allowRebuy: data.allowRebuy,
     rebuyPrice: data.rebuyPrice ?? 0,
     rebuyStack: data.rebuyStack ?? data.startingStack,
+    maxRebuys: (data.maxRebuys ?? "") as number | "",
     allowAddOn: data.allowAddOn,
     addOnPrice: data.addOnPrice ?? 0,
     addOnStack: data.addOnStack ?? data.startingStack,
@@ -1078,9 +1090,11 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const { feeEnabled, feeMode, feeValue, feeAppliesToRebuyAddOn, ...rest } = form;
+      const { feeEnabled, feeMode, feeValue, feeAppliesToRebuyAddOn, maxRebuys, ...rest } = form;
       const payload = {
         ...rest,
+        // Blank = unlimited (null); only meaningful while rebuys are enabled.
+        maxRebuys: form.allowRebuy && maxRebuys !== "" ? Number(maxRebuys) : null,
         feeMode: feeEnabled ? feeMode : "none",
         feeValue: feeEnabled ? feeValue : 0,
         feeAppliesToRebuyAddOn: feeEnabled ? feeAppliesToRebuyAddOn : false,
@@ -1139,7 +1153,7 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
           {t("wizard_allowRebuy")}
         </label>
         {form.allowRebuy && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <div>
               <label className={labelClass}>{t("wizard_rebuyPrice")}</label>
               <input type="number" className={inputClass} value={form.rebuyPrice} onChange={(e) => setForm({ ...form, rebuyPrice: Number(e.target.value) })} />
@@ -1147,6 +1161,17 @@ function SettingsTab({ data, id, adminToken, setData }: any) {
             <div>
               <label className={labelClass}>{t("wizard_rebuyStack")}</label>
               <input type="number" className={inputClass} value={form.rebuyStack} onChange={(e) => setForm({ ...form, rebuyStack: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className={labelClass}>{t("wizard_maxRebuys")}</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className={inputClass}
+                value={form.maxRebuys}
+                onChange={(e) => setForm({ ...form, maxRebuys: e.target.value === "" ? "" : Number(e.target.value) })}
+              />
             </div>
           </div>
         )}
