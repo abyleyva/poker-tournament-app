@@ -103,14 +103,14 @@ export default function JoinPage() {
               </div>
             </div>
 
-            {data.allowRebuy && !getEntryWindows(data, data.levels).rebuyOpen && (
+            {data.allowRebuy && !getEntryWindows(data, data.levels, data.allowAddOn).rebuyOpen && (
               <p className="mb-6 text-center text-sm text-neutral-400">{t("join_rebuy_closed")}</p>
             )}
-            {data.allowRebuy && getEntryWindows(data, data.levels).rebuyOpen && data.maxRebuys != null && me.rebuysCount >= data.maxRebuys && (
+            {data.allowRebuy && getEntryWindows(data, data.levels, data.allowAddOn).rebuyOpen && data.maxRebuys != null && me.rebuysCount >= data.maxRebuys && (
               <p className="mb-6 text-center text-sm text-neutral-400">{t("join_rebuy_limit_reached")}</p>
             )}
             {data.allowRebuy &&
-              getEntryWindows(data, data.levels).rebuyOpen &&
+              getEntryWindows(data, data.levels, data.allowAddOn).rebuyOpen &&
               !(data.maxRebuys != null && me.rebuysCount >= data.maxRebuys) && (
               <button
                 onClick={requestRebuy}

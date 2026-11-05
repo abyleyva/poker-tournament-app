@@ -9,6 +9,9 @@
 // break is marked the tournament has no time windows (the behavior from
 // before this feature): rebuys and add-ons are only limited by the per-player
 // rules (max rebuys, one add-on per player).
+//
+// The Add-on Break only makes sense when the add-on is enabled
+// ("Allow add-on"); if it isn't, any marked break is ignored.
 
 export type EntryWindows = {
   /** Index (in play order) of the Add-on Break, or null if none is marked. */
@@ -24,9 +27,10 @@ export type EntryWindows = {
 
 export function getEntryWindows(
   state: { status: string; currentLevelIndex: number },
-  levels: { isAddOnBreak?: boolean | null }[]
+  levels: { isAddOnBreak?: boolean | null }[],
+  addOnEnabled = true
 ): EntryWindows {
-  const addOnBreakIndex = levels.findIndex((l) => !!l.isAddOnBreak);
+  const addOnBreakIndex = addOnEnabled ? levels.findIndex((l) => !!l.isAddOnBreak) : -1;
   if (addOnBreakIndex === -1) {
     return { addOnBreakIndex: null, rebuyOpen: true, addOnOpen: true, addOnPhase: "unrestricted" };
   }

@@ -168,6 +168,25 @@ export default function NewTournamentPage() {
     );
   }
 
+  // Turning the add-on off also drops the Add-on Break mark (it needs the add-on).
+  function changeAllowAddOn(checked: boolean) {
+    setAllowAddOn(checked);
+    if (checked) return;
+    setLevels((prev) => {
+      const marked = prev.find((l) => l.isAddOnBreak);
+      return marked
+        ? setAddOnBreak(
+            prev,
+            marked.key,
+            false,
+            false,
+            lang === "es" ? "Descanso de add-on" : "Add-on Break",
+            lang === "es" ? "Descanso" : "Break"
+          )
+        : prev;
+    });
+  }
+
   function addPrize() {
     setPrizes((prev) => [...prev, { key: nextKey(), percentage: 0 }]);
   }
@@ -204,7 +223,7 @@ export default function NewTournamentPage() {
         levels: levels.map((l, idx) => ({
           order: idx,
           isBreak: l.isBreak,
-          isAddOnBreak: l.isBreak && l.isAddOnBreak,
+          isAddOnBreak: allowAddOn && l.isBreak && l.isAddOnBreak,
           smallBlind: l.isBreak ? null : Number(l.smallBlind) || 0,
           bigBlind: l.isBreak ? null : Number(l.bigBlind) || 0,
           ante: l.isBreak ? null : Number(l.ante) || 0,
@@ -354,7 +373,7 @@ export default function NewTournamentPage() {
 
           <div className="mt-4 rounded-xl border border-neutral-800 p-4">
             <label className="flex items-center gap-2 text-white font-medium">
-              <input type="checkbox" checked={allowAddOn} onChange={(e) => setAllowAddOn(e.target.checked)} />
+              <input type="checkbox" checked={allowAddOn} onChange={(e) => changeAllowAddOn(e.target.checked)} />
               {t("wizard_allowAddOn")}
             </label>
             {allowAddOn && (
@@ -546,12 +565,14 @@ export default function NewTournamentPage() {
                         type="checkbox"
                         className="mt-0.5"
                         checked={l.isAddOnBreak}
-                        disabled={!canToggleAddOnBreak(levels, l.key)}
+                        disabled={!canToggleAddOnBreak(levels, l.key) || !allowAddOn}
                         onChange={(e) => toggleAddOnBreak(l.key, e.target.checked)}
                       />
                       <span>
                         {t("level_addon_break_label")}
-                        <span className="block text-neutral-500">{t("level_addon_break_hint")}</span>
+                        <span className="block text-neutral-500">
+                          {allowAddOn ? t("level_addon_break_hint") : t("level_addon_break_needs_addon")}
+                        </span>
                       </span>
                     </label>
                   </>

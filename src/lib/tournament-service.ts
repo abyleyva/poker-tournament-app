@@ -141,6 +141,7 @@ export async function createTournament(input: CreateTournamentInput) {
     throw new ValidationError("Debes definir al menos un nivel de ciegas.");
   assertValidLogoUrl(input.logoUrl);
   assertValidAddOnBreak(input.levels);
+  assertAddOnBreakAllowed(input.levels, input.allowAddOn);
 
   const adminToken = generateToken();
   const normalizedFee = normalizeFee(input.feeMode, input.feeValue, input.buyIn);
@@ -354,6 +355,13 @@ function assertValidAddOnBreak(levels: LevelInput[]) {
   }
 }
 
+// An Add-on Break only makes sense when the add-on is enabled.
+function assertAddOnBreakAllowed(levels: LevelInput[], allowAddOn: boolean) {
+  if (!allowAddOn && levels.some((l) => l.isBreak && l.isAddOnBreak)) {
+    throw new ValidationError("Activa «Permitir add-on» para poder marcar un Add-on Break.");
+  }
+}
+
 function assertLevelsAppendOnly(existing: { order: number; isBreak: boolean; isAddOnBreak?: boolean; smallBlind: number | null; bigBlind: number | null; ante: number | null; durationMinutes: number; breakLabel: string | null }[], incoming: LevelInput[]) {
   if (incoming.length < existing.length) {
     throw new ValidationError(
@@ -497,12 +505,21 @@ export async function updateTournamentSettings(
 
   // Validate levels and prizes before any write, so a rejected request
   // doesn't leave the other settings half-applied.
+  const effectiveAllowAddOn = patch.allowAddOn !== undefined ? patch.allowAddOn : tournament.allowAddOn;
   if (patch.levels) {
     assertValidAddOnBreak(patch.levels);
     if (tournament.status !== "draft") {
       assertLevelsAppendOnly(existingLevels, patch.levels);
     }
+    // A mark already saved on a started tournament can't be changed (the levels
+    // are frozen), so it must not block appending levels; new marks can't be added.
+    const keepsLegacyMark =
+      tournament.status !== "draft" && existingLevels.some((l) => l.isAddOnBreak);
+    if (!keepsLegacyMark) assertAddOnBreakAllowed(patch.levels, effectiveAllowAddOn);
   }
+  // Draft: turning the add-on off drops any Add-on Break mark in the same save.
+  const clearAddOnBreakMarks =
+    !patch.levels && tournament.status === "draft" && !effectiveAllowAddOn;
 
   let normalizedPrizes: PrizeInputRow[] | undefined;
   if (patch.prizes) {
@@ -531,6 +548,13 @@ export async function updateTournamentSettings(
         }))
       );
     }
+  }
+
+  if (clearAddOnBreakMarks) {
+    await db
+      .update(blindLevels)
+      .set({ isAddOnBreak: false })
+      .where(eq(blindLevels.tournamentId, tournamentId));
   }
 
   if (normalizedPrizes) {
@@ -777,7 +801,7 @@ export async function updatePlayer(
   // depends on which level the (server-authoritative) clock is on right now.
   const { tournament, levels } = await tick(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
-  const windows = getEntryWindows(tournament, levels);
+  const windows = getEntryWindows(tournament, levels, tournament.allowAddOn);
 
   const player = await db.query.players.findFirst({
     where: and(eq(players.id, playerId), eq(players.tournamentId, tournamentId)),
@@ -864,6 +888,6 @@ export async function requestRebuy(token: string) {
   const player = await db.query.players.findFirst({ where: eq(players.inviteToken, token) });
   if (!player) throw new NotFoundError("Invitación no encontrada.");
   const { tournament, levels } = await tick(player.tournamentId);
-  assertCanRebuy(tournament, player, getEntryWindows(tournament, levels));
+  assertCanRebuy(tournament, player, getEntryWindows(tournament, levels, tournament.allowAddOn));
   await db.update(players).set({ requestedRebuy: true }).where(eq(players.id, player.id));
 }

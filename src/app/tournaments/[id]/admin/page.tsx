@@ -292,7 +292,8 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
   // Add-on Break and where the clock is). Enforced by the server as well.
   const windows = getEntryWindows(
     { status: data.status, currentLevelIndex: data.currentLevelIndex },
-    data.levels
+    data.levels,
+    data.allowAddOn
   );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -1011,12 +1012,18 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
                         type="checkbox"
                         className="mt-0.5"
                         checked={l.isAddOnBreak}
-                        disabled={rowLocked || !canToggleAddOnBreak(levels, l.key, locked)}
+                        disabled={
+                          rowLocked ||
+                          !canToggleAddOnBreak(levels, l.key, locked) ||
+                          (!data.allowAddOn && !l.isAddOnBreak)
+                        }
                         onChange={(e) => toggleAddOnBreak(l.key, e.target.checked)}
                       />
                       <span>
                         {t("level_addon_break_label")}
-                        <span className="block text-neutral-500">{t("level_addon_break_hint")}</span>
+                        <span className="block text-neutral-500">
+                          {data.allowAddOn ? t("level_addon_break_hint") : t("level_addon_break_needs_addon")}
+                        </span>
                       </span>
                     </label>
                   </>
