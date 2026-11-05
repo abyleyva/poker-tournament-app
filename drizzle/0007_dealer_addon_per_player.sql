@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "dealer_addon" boolean DEFAULT false NOT NULL;

@@ -50,6 +50,13 @@
       "when": 1793856629813,
       "tag": "0006_productive_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793858191969,
+      "tag": "0007_dealer_addon_per_player",
+      "breakpoints": true
     }
   ]
 }

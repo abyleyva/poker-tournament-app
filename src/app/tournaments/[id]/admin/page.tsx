@@ -297,7 +297,12 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
   );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [dealerAddOn, setDealerAddOn] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Dealer add-on: paid at registration (before the first hand) for extra
+  // chips; the money is a tip for the dealers, never part of the prize pool.
+  const dealerChips = (data.chipPlan?.dealerAddOnStack ?? data.startingStack ?? 0).toLocaleString();
+  const dealerPrice = formatCurrency(data.chipPlan?.dealerAddOnPrice ?? 0, data.currency, "es-MX");
 
   async function addPlayer(e: React.FormEvent) {
     e.preventDefault();
@@ -306,7 +311,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
     const res = await fetch(`/api/tournaments/${id}/players`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminToken, name, email }),
+      body: JSON.stringify({ adminToken, name, email, dealerAddOn: data.allowDealerAddOn && dealerAddOn }),
     });
     const json = await res.json();
     setBusy(false);
@@ -314,6 +319,7 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
       setData(json);
       setName("");
       setEmail("");
+      setDealerAddOn(false);
     } else alert(json.error);
   }
 
@@ -355,7 +361,22 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
             {t("players_add_cta")}
           </button>
         </div>
+        {data.allowDealerAddOn && (
+          <label className="mt-3 flex items-center gap-2 text-xs text-neutral-300">
+            <input type="checkbox" checked={dealerAddOn} onChange={(e) => setDealerAddOn(e.target.checked)} />
+            {t("players_dealer_addon_option", { chips: dealerChips, price: dealerPrice })}
+          </label>
+        )}
       </form>
+
+      {data.allowDealerAddOn && data.chipPlan && (
+        <p className="rounded-xl border border-neutral-800 px-4 py-2 text-xs text-neutral-400">
+          {t("players_dealer_addon_summary", {
+            count: data.chipPlan.totalDealerAddOns,
+            total: formatCurrency(data.chipPlan.dealerTipsTotal, data.currency, "es-MX"),
+          })}
+        </p>
+      )}
 
       {windows.addOnBreakIndex !== null && (
         <p
@@ -389,6 +410,11 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                   >
                     {p.status === "active" ? t("players_status_active") : t("players_status_eliminated")}
                   </span>
+                  {p.dealerAddOn && (
+                    <span className="rounded-full bg-sky-900/50 px-2 py-0.5 text-xs text-sky-300">
+                      {t("players_dealer_addon_done")}
+                    </span>
+                  )}
                   {p.requestedRebuy && (
                     <span className="rounded-full bg-amber-900/50 px-2 py-0.5 text-xs text-amber-300">
                       {t("players_requested_rebuy")}
@@ -459,6 +485,17 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                         : windows.addOnPhase === "closed"
                           ? t("players_addon_closed")
                           : t("players_addon_cta")}
+                  </button>
+                )}
+                {data.allowDealerAddOn && p.status === "active" && !p.dealerAddOn && (
+                  <button
+                    onClick={() => patchPlayer(p.id, { dealerAddOn: true })}
+                    disabled={data.status !== "draft"}
+                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700"
+                  >
+                    {data.status !== "draft"
+                      ? t("players_dealer_addon_started")
+                      : t("players_dealer_addon_cta", { chips: dealerChips })}
                   </button>
                 )}
                 {p.status === "active" ? (

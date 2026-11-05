@@ -37,6 +37,8 @@ export function serializeTournament(params: {
   const entriesCount = playerRows.length;
   const totalRebuys = playerRows.reduce((sum, p) => sum + (p.rebuysCount ?? 0), 0);
   const totalAddOns = playerRows.reduce((sum, p) => sum + (p.addOnsCount ?? 0), 0);
+  // Dealer add-ons are a tip for the dealers: counted apart, never in the pool.
+  const totalDealerAddOns = playerRows.filter((p) => p.dealerAddOn).length;
 
   const { grossPool, feeTotal, netPool } = computePrizePool({
     entriesCount,
@@ -111,6 +113,7 @@ export function serializeTournament(params: {
     prizePool: Math.round(netPool * 100) / 100,
     payouts,
     stats: { entriesCount, activeCount, averageStack, totalRebuys, totalAddOns },
+    allowDealerAddOn: tournament.allowDealerAddOn,
     ...(isAdmin
       ? {
           organizerFee: {
@@ -128,6 +131,8 @@ export function serializeTournament(params: {
             expectedAddOns: tournament.expectedAddOns,
             expectedDealerAddOns: tournament.expectedDealerAddOns,
             allowDealerAddOn: tournament.allowDealerAddOn,
+            totalDealerAddOns,
+            dealerTipsTotal: Math.round(totalDealerAddOns * (tournament.dealerAddOnPrice ?? 0) * 100) / 100,
             dealerAddOnPrice: tournament.dealerAddOnPrice,
             dealerAddOnStack: tournament.dealerAddOnStack,
             denominations: chipDenominationRows.map((d) => ({
@@ -155,6 +160,7 @@ export function serializeTournament(params: {
         chipCount: p.chipCount,
         rebuysCount: p.rebuysCount,
         addOnsCount: p.addOnsCount,
+        dealerAddOn: p.dealerAddOn,
         finishPosition: p.finishPosition,
         joined: !!p.joinedAt,
         requestedRebuy: p.requestedRebuy,

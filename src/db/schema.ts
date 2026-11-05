@@ -26,13 +26,15 @@ export const tournaments = pgTable("tournaments", {
   addOnPrice: doublePrecision("addon_price"),
   addOnStack: integer("addon_stack"),
 
-  // "Dealer add-on": propina opcional para los dealers, ofrecida antes de
-  // iniciar el torneo. A diferencia del rebuy/add-on normal, esto NO se
-  // registra por jugador ni se descuenta de la bolsa de premios — es dinero
-  // que se queda directamente con los dealers como agradecimiento por su
-  // servicio, nunca del organizador ni de los jugadores que compiten por el
-  // premio. Solo se usa para la pestaña "Chips Summary" (planeación de
-  // cuántas fichas físicas llevar), ver src/lib/tournament-logic.ts.
+  // "Dealer add-on" (staff add-on): pago extra, opcional y de bajo costo que
+  // el jugador hace AL INSCRIBIRSE (antes de recibir su primera mano) a cambio
+  // de un paquete extra de fichas. A diferencia del add-on tradicional (que se
+  // compra en el Add-on Break) y del rebuy, no depende del reloj ni del
+  // "Allow add-on". Se registra por jugador (players.dealerAddOn, máx. uno),
+  // pero el dinero es una propina que se queda con los dealers: nunca entra a
+  // la bolsa de premios ni a la comisión del organizador. Ver
+  // src/lib/entry-rules.ts (assertCanDealerAddOn en tournament-service.ts) y,
+  // para la planeación de fichas físicas, la pestaña "Chips Summary".
   allowDealerAddOn: boolean("allow_dealer_addon").notNull().default(false),
   dealerAddOnPrice: doublePrecision("dealer_addon_price"),
   dealerAddOnStack: integer("dealer_addon_stack"),
@@ -119,6 +121,8 @@ export const players = pgTable("players", {
   chipCount: integer("chip_count"),
   rebuysCount: integer("rebuys_count").notNull().default(0),
   addOnsCount: integer("addons_count").notNull().default(0),
+  // Whether the player paid the dealer add-on at registration (one at most).
+  dealerAddOn: boolean("dealer_addon").notNull().default(false),
   requestedRebuy: boolean("requested_rebuy").notNull().default(false),
   finishPosition: integer("finish_position"),
   eliminatedAt: timestamp("eliminated_at", { withTimezone: true }),

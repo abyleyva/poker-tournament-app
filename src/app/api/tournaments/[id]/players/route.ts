@@ -8,8 +8,8 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const { adminToken, name, email } = await req.json();
-    await addPlayer(id, adminToken, { name, email });
+    const { adminToken, name, email, dealerAddOn } = await req.json();
+    await addPlayer(id, adminToken, { name, email, dealerAddOn });
     const { tournament, levels, players, prizes, chipDenominations } = await getTournamentState(id);
     return NextResponse.json(
       serializeTournament({

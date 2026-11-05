@@ -132,6 +132,11 @@ const dictionaries = {
     players_rebuy_cta: "Registrar recompra",
     players_addon_cta: "Registrar add-on",
     players_addon_done: "Add-on ya registrado",
+    players_dealer_addon_option: "Dealer add-on (+{{chips}} fichas · {{price}})",
+    players_dealer_addon_cta: "Dealer add-on (+{{chips}} fichas)",
+    players_dealer_addon_done: "Dealer add-on pagado",
+    players_dealer_addon_started: "Dealer add-on: solo al inscribirse",
+    players_dealer_addon_summary: "Dealer add-ons: {{count}} · Propinas: {{total}} (no incluidas en el premio)",
     players_rebuy_limit_reached: "Máximo de recompras alcanzado",
     players_finish_position: "Lugar final",
     players_requested_rebuy: "Pidió recompra",
@@ -215,7 +220,7 @@ const dictionaries = {
     settings_logo_error_generic: "No se pudo procesar la imagen.",
 
     settings_dealer_addon_enable: "Permitir dealer add-on",
-    settings_dealer_addon_hint: "Costo adicional que aporta cada jugador como propina para los dealers. No se contabiliza en el premio final.",
+    settings_dealer_addon_hint: "Pago extra, opcional y de bajo costo que el jugador hace al inscribirse (antes de su primera mano) a cambio de fichas extra. Es una propina para los dealers: no entra al premio ni a la comisión, y no depende del Add-on Break.",
     settings_dealer_addon_price: "Costo del dealer add-on",
     settings_dealer_addon_stack: "Fichas que da el dealer add-on",
 
@@ -433,6 +438,11 @@ const dictionaries = {
     players_rebuy_cta: "Log rebuy",
     players_addon_cta: "Log add-on",
     players_addon_done: "Add-on already logged",
+    players_dealer_addon_option: "Dealer add-on (+{{chips}} chips · {{price}})",
+    players_dealer_addon_cta: "Dealer add-on (+{{chips}} chips)",
+    players_dealer_addon_done: "Dealer add-on paid",
+    players_dealer_addon_started: "Dealer add-on: registration only",
+    players_dealer_addon_summary: "Dealer add-ons: {{count}} · Tips: {{total}} (not part of the prize pool)",
     players_rebuy_limit_reached: "Rebuy limit reached",
     players_finish_position: "Final place",
     players_requested_rebuy: "Requested rebuy",
@@ -516,7 +526,7 @@ const dictionaries = {
     settings_logo_error_generic: "Couldn't process the image.",
 
     settings_dealer_addon_enable: "Allow dealer add-on",
-    settings_dealer_addon_hint: "Extra amount each player contributes as a tip for the dealers. Never counted toward the final prize pool.",
+    settings_dealer_addon_hint: "Optional, low-cost extra payment a player makes when registering (before their first hand) in exchange for extra chips. It is a tip for the dealers: not part of the prize pool or the organizer fee, and independent of the Add-on Break.",
     settings_dealer_addon_price: "Dealer add-on price",
     settings_dealer_addon_stack: "Chips granted per dealer add-on",
 

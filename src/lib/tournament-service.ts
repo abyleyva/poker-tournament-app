@@ -707,11 +707,16 @@ export async function controlTournament(
 export async function addPlayer(
   tournamentId: string,
   adminToken: string,
-  data: { name: string; email?: string | null }
+  data: { name: string; email?: string | null; dealerAddOn?: boolean }
 ) {
   const { tournament } = await fetchFull(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
   if (!data.name?.trim()) throw new ValidationError("El nombre del jugador es obligatorio.");
+
+  // The dealer add-on is paid when registering, before the first hand: the
+  // extra chips are simply part of the player's starting stack.
+  const wantsDealerAddOn = !!data.dealerAddOn;
+  if (wantsDealerAddOn) assertDealerAddOnEnabled(tournament);
 
   const [player] = await db
     .insert(players)
@@ -721,7 +726,8 @@ export async function addPlayer(
       email: data.email?.trim() || null,
       inviteToken: generateToken(12),
       status: "active",
-      chipCount: tournament.startingStack,
+      chipCount: tournament.startingStack + (wantsDealerAddOn ? dealerAddOnChips(tournament) : 0),
+      dealerAddOn: wantsDealerAddOn,
     })
     .returning();
 
@@ -735,6 +741,7 @@ export type PlayerPatch = {
   reactivate?: boolean;
   rebuy?: boolean;
   addOn?: boolean;
+  dealerAddOn?: boolean;
   clearRebuyRequest?: boolean;
 };
 
@@ -783,6 +790,37 @@ function assertCanAddOn(
   }
 }
 
+// Dealer add-on: optional low-cost payment made at registration (before the
+// first hand) for an extra chip package; the money is a tip for the dealers.
+// Unlike the regular add-on it doesn't depend on "Allow add-on", the clock or
+// the Add-on Break. One per player. On an existing player it can only be added
+// while the tournament hasn't started (once the clock runs, hands are dealt);
+// a late registrant takes it when they are added (see addPlayer).
+function assertDealerAddOnEnabled(tournament: { allowDealerAddOn: boolean }) {
+  if (!tournament.allowDealerAddOn) {
+    throw new ValidationError("El dealer add-on no está habilitado en este torneo.");
+  }
+}
+
+function dealerAddOnChips(tournament: { dealerAddOnStack: number | null; startingStack: number }) {
+  return tournament.dealerAddOnStack ?? tournament.startingStack;
+}
+
+function assertCanDealerAddOn(
+  tournament: { allowDealerAddOn: boolean; status: string },
+  player: { dealerAddOn: boolean }
+) {
+  assertDealerAddOnEnabled(tournament);
+  if (tournament.status !== "draft") {
+    throw new ValidationError(
+      "El dealer add-on se paga al inscribirse, antes de la primera mano: ya no está disponible porque el torneo inició."
+    );
+  }
+  if (player.dealerAddOn) {
+    throw new ValidationError("Este jugador ya pagó su dealer add-on (solo se permite uno por jugador).");
+  }
+}
+
 function normalizeMaxRebuys(value: number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
   if (!Number.isInteger(value) || value < 0) {
@@ -812,6 +850,7 @@ export async function updatePlayer(
 
   if (patch.rebuy) assertCanRebuy(tournament, player, windows);
   if (patch.addOn) assertCanAddOn(tournament, player, windows);
+  if (patch.dealerAddOn) assertCanDealerAddOn(tournament, player);
 
   if (patch.chipCount !== undefined) updates.chipCount = patch.chipCount;
   if (patch.eliminate) {
@@ -834,6 +873,10 @@ export async function updatePlayer(
     updates.addOnsCount = (player.addOnsCount ?? 0) + 1;
     updates.chipCount = (player.chipCount ?? 0) + (tournament.addOnStack ?? tournament.startingStack);
   }
+  if (patch.dealerAddOn) {
+    updates.dealerAddOn = true;
+    updates.chipCount = (player.chipCount ?? 0) + dealerAddOnChips(tournament);
+  }
   if (patch.clearRebuyRequest) updates.requestedRebuy = false;
 
   // The limits are also part of the UPDATE's WHERE clause, so two requests
@@ -842,12 +885,15 @@ export async function updatePlayer(
   const guards = [eq(players.id, playerId)];
   if (patch.addOn) guards.push(lt(players.addOnsCount, MAX_ADDONS_PER_PLAYER));
   if (patch.rebuy && tournament.maxRebuys != null) guards.push(lt(players.rebuysCount, tournament.maxRebuys));
+  if (patch.dealerAddOn) guards.push(eq(players.dealerAddOn, false));
   const updated = await db.update(players).set(updates).where(and(...guards)).returning({ id: players.id });
   if (updated.length === 0) {
     throw new ValidationError(
       patch.addOn
         ? "Este jugador ya compró su add-on (solo se permite uno por jugador)."
-        : "Este jugador ya alcanzó el máximo de recompras permitidas."
+        : patch.dealerAddOn
+          ? "Este jugador ya pagó su dealer add-on (solo se permite uno por jugador)."
+          : "Este jugador ya alcanzó el máximo de recompras permitidas."
     );
   }
 
