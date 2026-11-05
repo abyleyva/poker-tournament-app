@@ -1,0 +1,1 @@
+ALTER TABLE "blind_levels" ADD COLUMN "is_addon_break" boolean DEFAULT false NOT NULL;

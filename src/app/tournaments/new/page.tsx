@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { saveLocalTournament } from "@/lib/local-tournaments";
-import { canMoveBreak, moveBreak } from "@/lib/level-order";
+import { canMoveBreak, canToggleAddOnBreak, moveBreak, setAddOnBreak } from "@/lib/level-order";
 
 type LevelRow = {
   key: string;
   isBreak: boolean;
+  isAddOnBreak: boolean;
   smallBlind: number | "";
   bigBlind: number | "";
   ante: number | "";
@@ -40,6 +41,7 @@ function defaultLevels(): LevelRow[] {
   return blinds.map(([sb, bb]) => ({
     key: nextKey(),
     isBreak: false,
+    isAddOnBreak: false,
     smallBlind: sb,
     bigBlind: bb,
     ante: 0,
@@ -119,6 +121,7 @@ export default function NewTournamentPage() {
       {
         key: nextKey(),
         isBreak: false,
+        isAddOnBreak: false,
         smallBlind: last ? Number(last.smallBlind) * 2 : 25,
         bigBlind: last ? Number(last.bigBlind) * 2 : 50,
         ante: last ? last.ante : 0,
@@ -134,6 +137,7 @@ export default function NewTournamentPage() {
       {
         key: nextKey(),
         isBreak: true,
+        isAddOnBreak: false,
         smallBlind: "",
         bigBlind: "",
         ante: "",
@@ -149,6 +153,19 @@ export default function NewTournamentPage() {
 
   function moveBreakRow(key: string, direction: -1 | 1) {
     setLevels((prev) => moveBreak(prev, key, direction));
+  }
+
+  function toggleAddOnBreak(key: string, checked: boolean) {
+    setLevels((prev) =>
+      setAddOnBreak(
+        prev,
+        key,
+        checked,
+        false,
+        lang === "es" ? "Descanso de add-on" : "Add-on Break",
+        lang === "es" ? "Descanso" : "Break"
+      )
+    );
   }
 
   function addPrize() {
@@ -187,6 +204,7 @@ export default function NewTournamentPage() {
         levels: levels.map((l, idx) => ({
           order: idx,
           isBreak: l.isBreak,
+          isAddOnBreak: l.isBreak && l.isAddOnBreak,
           smallBlind: l.isBreak ? null : Number(l.smallBlind) || 0,
           bigBlind: l.isBreak ? null : Number(l.bigBlind) || 0,
           ante: l.isBreak ? null : Number(l.ante) || 0,
@@ -500,6 +518,7 @@ export default function NewTournamentPage() {
                   </div>
                 </div>
                 {l.isBreak ? (
+                  <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label className={labelClass}>{t("wizard_level_break_label")}</label>
@@ -522,6 +541,20 @@ export default function NewTournamentPage() {
                       />
                     </div>
                   </div>
+                    <label className="mt-3 flex items-start gap-2 text-xs text-neutral-300">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={l.isAddOnBreak}
+                        disabled={!canToggleAddOnBreak(levels, l.key)}
+                        onChange={(e) => toggleAddOnBreak(l.key, e.target.checked)}
+                      />
+                      <span>
+                        {t("level_addon_break_label")}
+                        <span className="block text-neutral-500">{t("level_addon_break_hint")}</span>
+                      </span>
+                    </label>
+                  </>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-4">
                     <div>

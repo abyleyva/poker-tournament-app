@@ -101,6 +101,7 @@ export function serializeTournament(params: {
       id: l.id,
       order: l.order,
       isBreak: l.isBreak,
+      isAddOnBreak: l.isAddOnBreak,
       smallBlind: l.smallBlind,
       bigBlind: l.bigBlind,
       ante: l.ante,

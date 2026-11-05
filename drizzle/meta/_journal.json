@@ -43,6 +43,13 @@
       "when": 1790123197372,
       "tag": "0005_workable_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793856629813,
+      "tag": "0006_productive_kabuki",
+      "breakpoints": true
     }
   ]
 }

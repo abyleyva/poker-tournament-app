@@ -6,6 +6,7 @@ import { computeAdvancedClock } from "./tournament-logic";
 import { DEFAULT_THEME_COLOR, isThemeColorId } from "./theme";
 import { DEFAULT_SCREEN_LAYOUT, isScreenLayoutId } from "./screen-layout";
 import { DEFAULT_FEE_MODE, isFeeMode, type FeeMode } from "./organizer-fee";
+import { getEntryWindows, type EntryWindows } from "./entry-rules";
 
 // Logos are stored inline as data URLs (no external file storage configured
 // for this project), so we cap how large one can be to keep DB rows small.
@@ -75,6 +76,7 @@ function assertFeeLockedIfStarted(
 export type LevelInput = {
   order: number;
   isBreak: boolean;
+  isAddOnBreak?: boolean;
   smallBlind?: number | null;
   bigBlind?: number | null;
   ante?: number | null;
@@ -138,6 +140,7 @@ export async function createTournament(input: CreateTournamentInput) {
   if (!input.levels || input.levels.length === 0)
     throw new ValidationError("Debes definir al menos un nivel de ciegas.");
   assertValidLogoUrl(input.logoUrl);
+  assertValidAddOnBreak(input.levels);
 
   const adminToken = generateToken();
   const normalizedFee = normalizeFee(input.feeMode, input.feeValue, input.buyIn);
@@ -182,6 +185,7 @@ export async function createTournament(input: CreateTournamentInput) {
         tournamentId: tournament.id,
         order: lvl.order,
         isBreak: lvl.isBreak,
+        isAddOnBreak: lvl.isBreak && !!lvl.isAddOnBreak,
         smallBlind: lvl.isBreak ? null : lvl.smallBlind ?? null,
         bigBlind: lvl.isBreak ? null : lvl.bigBlind ?? null,
         ante: lvl.isBreak ? null : lvl.ante ?? null,
@@ -332,7 +336,25 @@ export async function updateAppLogo(logoUrl: string | null) {
 // going past its originally-planned last level (e.g. players are still
 // active when the clock is about to run out) without being able to rewrite
 // levels that have already been played or are currently in progress.
-function assertLevelsAppendOnly(existing: { order: number; isBreak: boolean; smallBlind: number | null; bigBlind: number | null; ante: number | null; durationMinutes: number; breakLabel: string | null }[], incoming: LevelInput[]) {
+// Only one break can be the "Add-on Break" (rebuys close when it starts and
+// the add-on is sold during it), and it can't be the very first level because
+// there would be no rebuy period before it.
+function assertValidAddOnBreak(levels: LevelInput[]) {
+  const sorted = [...levels].sort((a, b) => a.order - b.order);
+  const marked = sorted.filter((l) => l.isAddOnBreak);
+  if (marked.length === 0) return;
+  if (marked.length > 1) {
+    throw new ValidationError("Solo un descanso puede ser el Add-on Break.");
+  }
+  if (!marked[0].isBreak) {
+    throw new ValidationError("El Add-on Break debe ser un descanso.");
+  }
+  if (sorted[0] === marked[0]) {
+    throw new ValidationError("El Add-on Break no puede ser el primer elemento: antes debe haber al menos un nivel de rebuys.");
+  }
+}
+
+function assertLevelsAppendOnly(existing: { order: number; isBreak: boolean; isAddOnBreak?: boolean; smallBlind: number | null; bigBlind: number | null; ante: number | null; durationMinutes: number; breakLabel: string | null }[], incoming: LevelInput[]) {
   if (incoming.length < existing.length) {
     throw new ValidationError(
       "El torneo ya inició: no se pueden quitar ni reordenar niveles existentes, solo agregar nuevos al final."
@@ -349,7 +371,8 @@ function assertLevelsAppendOnly(existing: { order: number; isBreak: boolean; sma
       before.isBreak === after.isBreak &&
       before.durationMinutes === after.durationMinutes &&
       (before.isBreak
-        ? (before.breakLabel ?? "") === (after.breakLabel ?? "")
+        ? (before.breakLabel ?? "") === (after.breakLabel ?? "") &&
+          !!before.isAddOnBreak === !!after.isAddOnBreak
         : (before.smallBlind ?? 0) === (after.smallBlind ?? 0) &&
           (before.bigBlind ?? 0) === (after.bigBlind ?? 0) &&
           (before.ante ?? 0) === (after.ante ?? 0));
@@ -472,8 +495,15 @@ export async function updateTournamentSettings(
     updates.logoUrl = patch.logoUrl || null;
   }
 
-  // Validate the prize structure before any write, so a rejected request
+  // Validate levels and prizes before any write, so a rejected request
   // doesn't leave the other settings half-applied.
+  if (patch.levels) {
+    assertValidAddOnBreak(patch.levels);
+    if (tournament.status !== "draft") {
+      assertLevelsAppendOnly(existingLevels, patch.levels);
+    }
+  }
+
   let normalizedPrizes: PrizeInputRow[] | undefined;
   if (patch.prizes) {
     normalizedPrizes = normalizePrizes(patch.prizes);
@@ -485,10 +515,6 @@ export async function updateTournamentSettings(
   await db.update(tournaments).set(updates).where(eq(tournaments.id, tournamentId));
 
   if (patch.levels) {
-    if (tournament.status !== "draft") {
-      assertLevelsAppendOnly(existingLevels, patch.levels);
-    }
-
     await db.delete(blindLevels).where(eq(blindLevels.tournamentId, tournamentId));
     if (patch.levels.length > 0) {
       await db.insert(blindLevels).values(
@@ -496,6 +522,7 @@ export async function updateTournamentSettings(
           tournamentId,
           order: lvl.order,
           isBreak: lvl.isBreak,
+          isAddOnBreak: lvl.isBreak && !!lvl.isAddOnBreak,
           smallBlind: lvl.isBreak ? null : lvl.smallBlind ?? null,
           bigBlind: lvl.isBreak ? null : lvl.bigBlind ?? null,
           ante: lvl.isBreak ? null : lvl.ante ?? null,
@@ -694,10 +721,16 @@ const MAX_ADDONS_PER_PLAYER = 1;
 
 function assertCanRebuy(
   tournament: { allowRebuy: boolean; maxRebuys: number | null },
-  player: { rebuysCount: number | null }
+  player: { rebuysCount: number | null },
+  windows: EntryWindows
 ) {
   if (!tournament.allowRebuy) {
     throw new ValidationError("Las recompras no están habilitadas en este torneo.");
+  }
+  if (!windows.rebuyOpen) {
+    throw new ValidationError(
+      "El periodo de rebuys terminó: solo se permiten antes de que empiece el Add-on Break."
+    );
   }
   if (tournament.maxRebuys != null && (player.rebuysCount ?? 0) >= tournament.maxRebuys) {
     throw new ValidationError(
@@ -706,9 +739,20 @@ function assertCanRebuy(
   }
 }
 
-function assertCanAddOn(tournament: { allowAddOn: boolean }, player: { addOnsCount: number | null }) {
+function assertCanAddOn(
+  tournament: { allowAddOn: boolean },
+  player: { addOnsCount: number | null },
+  windows: EntryWindows
+) {
   if (!tournament.allowAddOn) {
     throw new ValidationError("El add-on no está habilitado en este torneo.");
+  }
+  if (!windows.addOnOpen) {
+    throw new ValidationError(
+      windows.addOnPhase === "closed"
+        ? "El Add-on Break ya terminó: el add-on ya no está disponible."
+        : "El add-on solo se puede comprar durante el Add-on Break."
+    );
   }
   if ((player.addOnsCount ?? 0) >= MAX_ADDONS_PER_PLAYER) {
     throw new ValidationError("Este jugador ya compró su add-on (solo se permite uno por jugador).");
@@ -729,8 +773,11 @@ export async function updatePlayer(
   adminToken: string,
   patch: PlayerPatch
 ) {
-  const { tournament } = await fetchFull(tournamentId);
+  // tick() so the current level is up to date: whether rebuys/add-ons are open
+  // depends on which level the (server-authoritative) clock is on right now.
+  const { tournament, levels } = await tick(tournamentId);
   assertAdmin(tournament.adminToken, adminToken);
+  const windows = getEntryWindows(tournament, levels);
 
   const player = await db.query.players.findFirst({
     where: and(eq(players.id, playerId), eq(players.tournamentId, tournamentId)),
@@ -739,8 +786,8 @@ export async function updatePlayer(
 
   const updates: Record<string, unknown> = {};
 
-  if (patch.rebuy) assertCanRebuy(tournament, player);
-  if (patch.addOn) assertCanAddOn(tournament, player);
+  if (patch.rebuy) assertCanRebuy(tournament, player, windows);
+  if (patch.addOn) assertCanAddOn(tournament, player, windows);
 
   if (patch.chipCount !== undefined) updates.chipCount = patch.chipCount;
   if (patch.eliminate) {
@@ -816,8 +863,7 @@ export async function getPlayerByToken(token: string) {
 export async function requestRebuy(token: string) {
   const player = await db.query.players.findFirst({ where: eq(players.inviteToken, token) });
   if (!player) throw new NotFoundError("Invitación no encontrada.");
-  const tournament = await db.query.tournaments.findFirst({ where: eq(tournaments.id, player.tournamentId) });
-  if (!tournament) throw new NotFoundError("Torneo no encontrado.");
-  assertCanRebuy(tournament, player);
+  const { tournament, levels } = await tick(player.tournamentId);
+  assertCanRebuy(tournament, player, getEntryWindows(tournament, levels));
   await db.update(players).set({ requestedRebuy: true }).where(eq(players.id, player.id));
 }

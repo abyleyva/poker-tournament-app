@@ -97,6 +97,9 @@ export const blindLevels = pgTable("blind_levels", {
     .references(() => tournaments.id, { onDelete: "cascade" }),
   order: integer("order").notNull(),
   isBreak: boolean("is_break").notNull().default(false),
+  // At most one break per tournament is the "Add-on Break": rebuys close when
+  // it starts and the add-on is sold during it (see lib/entry-rules.ts).
+  isAddOnBreak: boolean("is_addon_break").notNull().default(false),
   smallBlind: integer("small_blind"),
   bigBlind: integer("big_blind"),
   ante: integer("ante"),

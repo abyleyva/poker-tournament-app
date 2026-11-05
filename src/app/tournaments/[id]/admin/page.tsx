@@ -14,7 +14,8 @@ import { BubbleBanner } from "@/components/bubble-banner";
 import { ChipColorPicker } from "@/components/chip-color-picker";
 import { PokerChipIcon } from "@/components/poker-chip-icon";
 import { chipColorLabel } from "@/lib/chip-colors";
-import { canMoveBreak, moveBreak } from "@/lib/level-order";
+import { canMoveBreak, canToggleAddOnBreak, moveBreak, setAddOnBreak } from "@/lib/level-order";
+import { getEntryWindows } from "@/lib/entry-rules";
 
 export default function AdminPage() {
   return (
@@ -287,6 +288,12 @@ function ClockTab({ data, currentLevel, nextLevel, onControl }: any) {
 
 function PlayersTab({ data, id, adminToken, setData }: any) {
   const { t } = useI18n();
+  // Whether rebuys / the add-on can be bought right now (driven by the
+  // Add-on Break and where the clock is). Enforced by the server as well.
+  const windows = getEntryWindows(
+    { status: data.status, currentLevelIndex: data.currentLevelIndex },
+    data.levels
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -348,6 +355,22 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
           </button>
         </div>
       </form>
+
+      {windows.addOnBreakIndex !== null && (
+        <p
+          className={`rounded-xl border px-4 py-2 text-xs ${
+            windows.addOnPhase === "open"
+              ? "border-accent-500/50 bg-accent-500/10 text-accent-300"
+              : "border-neutral-800 text-neutral-400"
+          }`}
+        >
+          {windows.addOnPhase === "open"
+            ? t("players_windows_hint_open")
+            : windows.addOnPhase === "closed"
+              ? t("players_windows_hint_closed")
+              : t("players_windows_hint_upcoming")}
+        </p>
+      )}
 
       {data.players.length === 0 ? (
         <p className="text-neutral-500">{t("players_none")}</p>
@@ -412,21 +435,29 @@ function PlayersTab({ data, id, adminToken, setData }: any) {
                 {data.allowRebuy && p.status === "active" && (
                   <button
                     onClick={() => patchPlayer(p.id, { rebuy: true })}
-                    disabled={data.maxRebuys != null && p.rebuysCount >= data.maxRebuys}
+                    disabled={(data.maxRebuys != null && p.rebuysCount >= data.maxRebuys) || !windows.rebuyOpen}
                     className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700"
                   >
                     {data.maxRebuys != null && p.rebuysCount >= data.maxRebuys
                       ? t("players_rebuy_limit_reached")
-                      : t("players_rebuy_cta")}
+                      : !windows.rebuyOpen
+                        ? t("players_rebuy_closed")
+                        : t("players_rebuy_cta")}
                   </button>
                 )}
                 {data.allowAddOn && p.status === "active" && (
                   <button
                     onClick={() => patchPlayer(p.id, { addOn: true })}
-                    disabled={p.addOnsCount >= 1}
+                    disabled={p.addOnsCount >= 1 || !windows.addOnOpen}
                     className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700"
                   >
-                    {p.addOnsCount >= 1 ? t("players_addon_done") : t("players_addon_cta")}
+                    {p.addOnsCount >= 1
+                      ? t("players_addon_done")
+                      : windows.addOnPhase === "upcoming"
+                        ? t("players_addon_upcoming")
+                        : windows.addOnPhase === "closed"
+                          ? t("players_addon_closed")
+                          : t("players_addon_cta")}
                   </button>
                 )}
                 {p.status === "active" ? (
@@ -688,6 +719,7 @@ type LevelRow = {
   // and they can only be appended after the existing ones.
   existing: boolean;
   isBreak: boolean;
+  isAddOnBreak: boolean;
   smallBlind: number | "";
   bigBlind: number | "";
   ante: number | "";
@@ -700,6 +732,7 @@ function serverLevelsToRows(levels: any[]): LevelRow[] {
     key: l.id,
     existing: true,
     isBreak: l.isBreak,
+    isAddOnBreak: !!l.isAddOnBreak,
     smallBlind: l.smallBlind ?? "",
     bigBlind: l.bigBlind ?? "",
     ante: l.ante ?? "",
@@ -759,6 +792,7 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
         key: nextKey(),
         existing: false,
         isBreak: false,
+        isAddOnBreak: false,
         smallBlind: last ? Number(last.smallBlind) * 2 : 25,
         bigBlind: last ? Number(last.bigBlind) * 2 : 50,
         ante: last ? last.ante : 0,
@@ -775,6 +809,7 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
         key: nextKey(),
         existing: false,
         isBreak: true,
+        isAddOnBreak: false,
         smallBlind: "",
         bigBlind: "",
         ante: "",
@@ -798,6 +833,19 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
     setLevels((prev) => moveBreak(prev, key, direction, locked));
   }
 
+  function toggleAddOnBreak(key: string, checked: boolean) {
+    setLevels((prev) =>
+      setAddOnBreak(
+        prev,
+        key,
+        checked,
+        locked,
+        lang === "es" ? "Descanso de add-on" : "Add-on Break",
+        lang === "es" ? "Descanso" : "Break"
+      )
+    );
+  }
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -807,6 +855,7 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
         levels: levels.map((l, idx) => ({
           order: idx,
           isBreak: l.isBreak,
+          isAddOnBreak: l.isBreak && l.isAddOnBreak,
           smallBlind: l.isBreak ? null : Number(l.smallBlind) || 0,
           bigBlind: l.isBreak ? null : Number(l.bigBlind) || 0,
           ante: l.isBreak ? null : Number(l.ante) || 0,
@@ -932,6 +981,7 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
                   )}
                 </div>
                 {l.isBreak ? (
+                  <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label className={labelClass}>{t("wizard_level_break_label")}</label>
@@ -956,6 +1006,20 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
                       />
                     </div>
                   </div>
+                    <label className="mt-3 flex items-start gap-2 text-xs text-neutral-300">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={l.isAddOnBreak}
+                        disabled={rowLocked || !canToggleAddOnBreak(levels, l.key, locked)}
+                        onChange={(e) => toggleAddOnBreak(l.key, e.target.checked)}
+                      />
+                      <span>
+                        {t("level_addon_break_label")}
+                        <span className="block text-neutral-500">{t("level_addon_break_hint")}</span>
+                      </span>
+                    </label>
+                  </>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-4">
                     <div>
