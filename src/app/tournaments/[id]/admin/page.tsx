@@ -14,6 +14,7 @@ import { BubbleBanner } from "@/components/bubble-banner";
 import { ChipColorPicker } from "@/components/chip-color-picker";
 import { PokerChipIcon } from "@/components/poker-chip-icon";
 import { chipColorLabel } from "@/lib/chip-colors";
+import { canMoveBreak, moveBreak } from "@/lib/level-order";
 
 export default function AdminPage() {
   return (
@@ -782,6 +783,10 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
     });
   }
 
+  function moveBreakRow(key: string, direction: -1 | 1) {
+    setLevels((prev) => moveBreak(prev, key, direction, locked));
+  }
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -880,13 +885,39 @@ function LevelsTab({ data, id, adminToken, setData }: any) {
                     )}
                   </span>
                   {!rowLocked && (
-                    <button
-                      type="button"
-                      onClick={() => removeLevel(l.key)}
-                      className="text-xs text-neutral-500 hover:text-red-400"
-                    >
-                      {t("wizard_level_remove")}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {l.isBreak && !rowLocked && (
+                      <span className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveBreakRow(l.key, -1)}
+                          disabled={!canMoveBreak(levels, l.key, -1, locked)}
+                          aria-label={t("wizard_level_move_up")}
+                          title={t("wizard_level_move_up")}
+                          className="rounded-md border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveBreakRow(l.key, 1)}
+                          disabled={!canMoveBreak(levels, l.key, 1, locked)}
+                          aria-label={t("wizard_level_move_down")}
+                          title={t("wizard_level_move_down")}
+                          className="rounded-md border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700"
+                        >
+                          ▼
+                        </button>
+                      </span>
+                    )}
+                      <button
+                        type="button"
+                        onClick={() => removeLevel(l.key)}
+                        className="text-xs text-neutral-500 hover:text-red-400"
+                      >
+                        {t("wizard_level_remove")}
+                      </button>
+                    </div>
                   )}
                 </div>
                 {l.isBreak ? (

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { saveLocalTournament } from "@/lib/local-tournaments";
+import { canMoveBreak, moveBreak } from "@/lib/level-order";
 
 type LevelRow = {
   key: string;
@@ -144,6 +145,10 @@ export default function NewTournamentPage() {
 
   function removeLevel(key: string) {
     setLevels((prev) => prev.filter((l) => l.key !== key));
+  }
+
+  function moveBreakRow(key: string, direction: -1 | 1) {
+    setLevels((prev) => moveBreak(prev, key, direction));
   }
 
   function addPrize() {
@@ -460,13 +465,39 @@ export default function NewTournamentPage() {
                   <span className="text-sm font-medium text-neutral-300">
                     {l.isBreak ? t("wizard_level_break") : t("wizard_level_number", { n: levelNumbers[idx] ?? idx + 1 })}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeLevel(l.key)}
-                    className="text-xs text-neutral-500 hover:text-red-400"
-                  >
-                    {t("wizard_level_remove")}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {l.isBreak && (
+                      <span className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveBreakRow(l.key, -1)}
+                          disabled={!canMoveBreak(levels, l.key, -1)}
+                          aria-label={t("wizard_level_move_up")}
+                          title={t("wizard_level_move_up")}
+                          className="rounded-md border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveBreakRow(l.key, 1)}
+                          disabled={!canMoveBreak(levels, l.key, 1)}
+                          aria-label={t("wizard_level_move_down")}
+                          title={t("wizard_level_move_down")}
+                          className="rounded-md border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700"
+                        >
+                          ▼
+                        </button>
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeLevel(l.key)}
+                      className="text-xs text-neutral-500 hover:text-red-400"
+                    >
+                      {t("wizard_level_remove")}
+                    </button>
+                  </div>
                 </div>
                 {l.isBreak ? (
                   <div className="grid gap-3 sm:grid-cols-2">
